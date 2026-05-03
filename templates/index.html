@@ -1,79 +1,620 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Resume Screener</title>
   <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    /* ── Theme tokens ── */
+    :root {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --surface2: #f1f3f5;
+      --border: #e0e0e0;
+      --text: #1a1a1a;
+      --text2: #555;
+      --text3: #888;
+      --accent: #1D9E75;
+      --accent-light: #e1f5ee;
+      --accent-dark: #0f6e56;
+      --hire: #e1f5ee; --hire-text: #0f6e56;
+      --maybe: #fff8e1; --maybe-text: #b45309;
+      --pass: #fef2f2; --pass-text: #b91c1c;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+    [data-theme="dark"] {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #222532;
+      --border: #2e3344;
+      --text: #f0f0f0;
+      --text2: #aaa;
+      --text3: #666;
+      --accent: #1D9E75;
+      --accent-light: #0d3d2c;
+      --accent-dark: #5dcaa5;
+      --hire: #0d3d2c; --hire-text: #5dcaa5;
+      --maybe: #2d2000; --maybe-text: #fbbf24;
+      --pass: #2d0000; --pass-text: #f87171;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    /* ── Top bar ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .logo-dot {
+      width: 10px; height: 10px;
+      background: var(--accent);
+      border-radius: 50%;
+    }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+
+    /* Dark mode toggle */
+    .theme-toggle {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 13px;
+      color: var(--text2);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Layout ── */
+    .container { max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; }
+
+    .page-title { font-size: 26px; font-weight: 700; margin-bottom: 4px; }
+    .page-sub { font-size: 14px; color: var(--text3); margin-bottom: 28px; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      margin-bottom: 16px;
+    }
+    .card h2 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card h2 .icon { font-size: 16px; }
+
+    /* ── Form ── */
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: 13px; font-weight: 500; color: var(--text2); margin-bottom: 6px; }
+    .required { color: #e24b4a; }
+
+    input[type="text"], textarea, select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input[type="text"]:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+    }
+    textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
+
+    /* ── JD Section ── */
+    .jd-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .jd-library-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .jd-chip {
+      font-size: 12px; padding: 4px 12px;
+      border-radius: 20px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .jd-chip:hover { border-color: var(--accent); color: var(--accent); }
+    .jd-chip-empty { font-size: 12px; color: var(--text3); font-style: italic; }
+
+    .jd-upload-row {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+    }
+    .jd-upload-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 13px; padding: 7px 14px;
+      background: var(--surface2);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text2);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .jd-upload-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .jd-file-name { font-size: 12px; color: var(--accent); }
+
+    .jd-action-row {
+      display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap;
+    }
+    .jd-save-btn {
+      font-size: 13px; padding: 7px 14px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text2);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .jd-save-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .jd-hint { font-size: 12px; color: var(--text3); }
+
+    /* ── Drop zone ── */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 36px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--surface2);
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--accent);
+      background: var(--accent-light);
+    }
+    .drop-icon {
+      font-size: 36px; margin-bottom: 10px;
+      transition: transform 0.2s;
+    }
+    .drop-zone:hover .drop-icon { transform: translateY(-3px); }
+    .drop-zone p { font-size: 14px; color: var(--text2); }
+    .drop-zone p strong { color: var(--text); }
+    .browse-link { color: var(--accent); font-weight: 500; cursor: pointer; text-decoration: underline; }
+    .drop-hint { font-size: 12px !important; color: var(--text3) !important; margin-top: 4px; }
+
+    /* ── File list ── */
+    .file-list { list-style: none; margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+    .file-list li {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+    }
+    .file-list li .file-icon { font-size: 16px; flex-shrink: 0; }
+    .file-list li .file-name { flex: 1; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-size { font-size: 11px; color: var(--text3); white-space: nowrap; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 11px 22px;
+      border-radius: var(--radius-sm);
+      font-size: 14px; font-weight: 500;
+      cursor: pointer; border: none;
+      transition: all 0.15s;
+    }
+    .btn-primary {
+      background: var(--accent); color: white;
+      width: 100%; justify-content: center;
+      padding: 13px;
+      font-size: 15px;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-dark); }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-secondary {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text2);
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-understand {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      font-size: 13px;
+      padding: 7px 14px;
+    }
+    .btn-understand:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Spinner ── */
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid transparent;
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: inline-block;
+    }
+    .spinner--dark { border-top-color: var(--accent); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Screening animation ── */
+    .screening-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .screening-overlay.active { display: flex; }
+    .screening-box {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 32px 40px;
+      text-align: center;
+      min-width: 260px;
+    }
+    .screening-pulse {
+      width: 56px; height: 56px;
+      background: var(--accent-light);
+      border-radius: 50%;
+      margin: 0 auto 16px;
+      display: flex; align-items: center; justify-content: center;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.12); opacity: 0.7; }
+    }
+    .screening-text { font-size: 15px; font-weight: 600; color: var(--text); }
+    .screening-sub { font-size: 13px; color: var(--text3); margin-top: 4px; }
+
+    /* ── JD panel ── */
+    .jd-panel {
+      margin-top: 16px;
+      background: var(--accent-light);
+      border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+    }
+    .jd-panel-header { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 14px; }
+    .jd-panel-icon { font-size: 20px; }
+    .jd-panel-header h3 { font-size: 15px; font-weight: 600; color: var(--accent-dark); margin-bottom: 4px; }
+    .jd-summary { font-size: 13px; color: var(--text2); line-height: 1.6; }
+    .jd-panel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+    .jd-panel-section h4 { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+    .jd-panel-section ul { list-style: none; }
+    .jd-panel-section ul li { font-size: 13px; color: var(--text2); padding: 3px 0; padding-left: 14px; position: relative; }
+    .jd-panel-section ul li::before { content: '–'; position: absolute; left: 0; color: var(--text3); }
+
+    /* ── Error / Warning ── */
+    .error-banner {
+      background: #fef2f2; border: 1px solid #fca5a5;
+      color: #b91c1c; border-radius: var(--radius-sm);
+      padding: 12px 16px; margin: 12px 0; font-size: 14px;
+    }
+    .warning-box {
+      background: #fffbeb; border: 1px solid #fcd34d;
+      color: #92400e; border-radius: var(--radius-sm);
+      padding: 12px 16px; margin-bottom: 14px; font-size: 13px;
+    }
+
+    /* ── Results header ── */
+    .results-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px; flex-wrap: wrap; gap: 10px;
+    }
+    .results-header h2 { font-size: 18px; font-weight: 700; }
+    .badge {
+      background: var(--accent-light); color: var(--accent-dark);
+      font-size: 12px; font-weight: 600;
+      padding: 2px 8px; border-radius: 20px; margin-left: 8px;
+    }
+
+    /* ── Summary bar ── */
+    .summary-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px; margin-bottom: 20px;
+    }
+    .summary-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      text-align: center;
+    }
+    .summary-value { display: block; font-size: 26px; font-weight: 700; color: var(--text); }
+    .summary-value--name { font-size: 16px; }
+    .summary-label { display: block; font-size: 12px; color: var(--text3); margin-top: 2px; }
+    .summary-card--green .summary-value { color: var(--accent); }
+
+    /* ── Table ── */
+    .table-wrapper { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; background: var(--surface); }
+    thead th {
+      background: var(--surface2);
+      font-size: 12px; font-weight: 600; color: var(--text3);
+      text-transform: uppercase; letter-spacing: 0.05em;
+      padding: 12px 14px; text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px; color: var(--text);
+      vertical-align: middle;
+    }
+    .main-row:hover td { background: var(--surface2); }
+    .main-row:last-child td { border-bottom: none; }
+
+    /* Score bar */
+    .score-wrap { display: flex; align-items: center; gap: 8px; min-width: 110px; }
+    .score-bar { flex: 1; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+    .score-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+    .score-num { font-size: 12px; font-weight: 600; min-width: 28px; color: var(--text2); }
+    .fill-excellent { background: #1D9E75; }
+    .fill-good { background: #5DCAA5; }
+    .fill-mid { background: #EF9F27; }
+    .fill-weak { background: #f87171; }
+    .fill-low { background: #e24b4a; }
+
+    /* Verdict badge */
+    .verdict {
+      display: inline-block; font-size: 12px; font-weight: 600;
+      padding: 4px 10px; border-radius: 20px; white-space: nowrap;
+    }
+    .verdict-hire { background: var(--hire); color: var(--hire-text); }
+    .verdict-maybe { background: var(--maybe); color: var(--maybe-text); }
+    .verdict-pass { background: var(--pass); color: var(--pass-text); }
+
+    /* Shortlist */
+    .shortlist-btn {
+      background: transparent; border: 1px solid var(--border);
+      border-radius: 20px; padding: 4px 10px;
+      font-size: 12px; color: var(--text3);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .shortlist-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .shortlist-btn.active { background: var(--accent-light); color: var(--accent-dark); border-color: var(--accent); }
+
+    .expand-btn {
+      background: transparent; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 5px 12px;
+      font-size: 12px; color: var(--text2);
+      cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    }
+    .expand-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .expand-btn--open { background: var(--accent-light); color: var(--accent-dark); border-color: var(--accent); }
+
+    /* ── Detail panel ── */
+    .detail-row td { padding: 0; background: var(--surface2); }
+    .detail-panel {
+      padding: 20px 24px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 700px) {
+      .detail-panel { grid-template-columns: 1fr; }
+    }
+    .detail-heading {
+      font-size: 12px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      margin-bottom: 10px;
+    }
+    .detail-heading--green { color: var(--accent-dark); }
+    .detail-heading--red { color: #b91c1c; }
+    .detail-list { list-style: none; }
+    .detail-list li {
+      font-size: 13px; color: var(--text2);
+      padding: 5px 0; padding-left: 16px;
+      position: relative; border-bottom: 1px solid var(--border);
+    }
+    .detail-list li:last-child { border-bottom: none; }
+    .strength-item::before { content: '✓'; position: absolute; left: 0; color: var(--accent); font-weight: 700; }
+    .gap-item::before { content: '✗'; position: absolute; left: 0; color: #e24b4a; font-weight: 700; }
+
+    /* Requirements table */
+    .req-table { width: 100%; border-collapse: collapse; }
+    .req-table td { font-size: 13px; padding: 5px 0; border-bottom: 1px solid var(--border); }
+    .req-table tr:last-child td { border-bottom: none; }
+    .req-name { color: var(--text2); padding-right: 12px; }
+    .req-check { text-align: center; width: 32px; font-size: 15px; }
+    .tick { color: var(--accent); }
+    .cross { color: #e24b4a; }
+
+    /* Key takeaways */
+    .takeaways { list-style: none; }
+    .takeaways li {
+      font-size: 13px; color: var(--text2);
+      padding: 6px 0 6px 14px;
+      position: relative;
+      border-bottom: 1px solid var(--border);
+      line-height: 1.5;
+    }
+    .takeaways li:last-child { border-bottom: none; }
+    .takeaways li::before {
+      content: '';
+      position: absolute; left: 0; top: 13px;
+      width: 5px; height: 5px;
+      background: var(--accent);
+      border-radius: 50%;
+    }
+
+    /* Email draft */
+    .email-draft {
+      font-size: 12px; color: var(--text2);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px; white-space: pre-wrap;
+      line-height: 1.6; max-height: 180px;
+      overflow-y: auto; margin-bottom: 8px;
+    }
+    .copy-btn {
+      font-size: 12px; padding: 5px 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text2); cursor: pointer;
+    }
+    .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .copy-btn--done { background: var(--accent-light); color: var(--accent-dark); border-color: var(--accent); }
+
+    .skill-tag {
+      display: inline-block;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-size: 11px;
+      color: var(--text2);
+      margin: 2px;
+    }
+    .rank { font-size: 13px; color: var(--text3); font-weight: 500; }
+    .candidate-name { font-weight: 600; color: var(--text); }
+
+    /* ── Mobile ── */
+    @media (max-width: 600px) {
+      .topbar { padding: 12px 16px; }
+      .container { padding: 16px 14px 40px; }
+      .card { padding: 16px; }
+      .page-title { font-size: 21px; }
+      .summary-bar { grid-template-columns: 1fr 1fr; }
+      thead th:nth-child(5), thead th:nth-child(6),
+      tbody td:nth-child(5), tbody td:nth-child(6) { display: none; }
+    }
+
+    /* Actions row */
+    .actions-cell { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  </style>
 </head>
 <body>
+
+  <div class="screening-overlay" id="screeningOverlay">
+    <div class="screening-box">
+      <div class="screening-pulse">
+        <span style="font-size:24px;">🔍</span>
+      </div>
+      <div class="screening-text" id="screeningText">Screening resumes…</div>
+      <div class="screening-sub" id="screeningSub">Claude is reading each CV</div>
+    </div>
+  </div>
+
+  <div class="topbar">
+    <div class="logo">
+      <div class="logo-dot"></div>
+      AI Resume Screener
+    </div>
+    <div class="topbar-right">
+      <button class="theme-toggle" onclick="toggleTheme()">
+        <span id="themeIcon">🌙</span>
+        <span id="themeLabel">Dark</span>
+      </button>
+    </div>
+  </div>
+
   <div class="container">
-    <header>
-      <h1>AI Resume Screener</h1>
-      <p class="subtitle">Upload CVs and let Claude tell you who's suitable — and exactly what to say to your client</p>
-    </header>
+    <h1 class="page-title">Screen candidates instantly</h1>
+    <p class="page-sub">Upload CVs and let Claude tell you who's suitable — and exactly what to say to your client</p>
 
     <form id="screenForm" enctype="multipart/form-data">
+
       <section class="card">
-        <h2>Job Criteria</h2>
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="job_title">Job Title <span class="required">*</span></label>
-            <input
-              type="text"
-              id="job_title"
-              name="job_title"
-              placeholder="e.g. Senior Backend Engineer"
-              required
-            />
-          </div>
-          <div class="form-group">
-            <label for="min_years_experience">Minimum Years of Experience</label>
-            <input
-              type="number"
-              id="min_years_experience"
-              name="min_years_experience"
-              placeholder="e.g. 3"
-              min="0"
-              max="50"
-              value="0"
-            />
-          </div>
-          <div class="form-group full-width">
-            <label for="job_description">Job Description <span class="required">*</span></label>
-            <textarea
-              id="job_description"
-              name="job_description"
-              placeholder="Paste the full job description here — responsibilities, required skills, qualifications…"
-              rows="8"
-              required
-            ></textarea>
-            <div class="jd-action-row">
-              <button type="button" id="understandBtn" class="btn btn-understand" onclick="analyzeJD()">
-                <span id="understandBtnText">&#128269; Understand this JD</span>
-                <span id="understandSpinner" class="spinner spinner--dark" style="display:none"></span>
-              </button>
-              <span class="jd-hint">New to this role? Let AI break it down for you first.</span>
-            </div>
+        <h2><span class="icon">📋</span> Job Description</h2>
+
+        <!-- JD Library -->
+        <div style="margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:500;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">Saved JDs</div>
+          <div class="jd-library-row" id="jdLibraryRow">
+            <span class="jd-chip-empty">No saved JDs yet — fill in a JD below and save it</span>
           </div>
         </div>
 
-        <!-- JD Insight Panel -->
+        <div class="form-group">
+          <label for="job_title">Job title <span class="required">*</span></label>
+          <input type="text" id="job_title" name="job_title" placeholder="e.g. Senior Sales Executive" required />
+        </div>
+
+        <!-- JD upload or text -->
+        <div class="form-group">
+          <label>Job description <span class="required">*</span></label>
+          <div class="jd-upload-row">
+            <label class="jd-upload-btn" for="jdFile">
+              📎 Upload JD (PDF/DOCX)
+            </label>
+            <input type="file" id="jdFile" accept=".pdf,.doc,.docx" style="display:none" onchange="handleJDUpload(this)" />
+            <span class="jd-file-name" id="jdFileName"></span>
+          </div>
+          <textarea
+            id="job_description"
+            name="job_description"
+            placeholder="Or paste the job description here — responsibilities, required skills, qualifications…"
+            rows="7"
+          ></textarea>
+          <div class="jd-action-row">
+            <button type="button" class="btn btn-understand" onclick="analyzeJD()">
+              <span id="understandBtnText">🔍 Understand this JD</span>
+              <span id="understandSpinner" class="spinner spinner--dark" style="display:none"></span>
+            </button>
+            <button type="button" class="jd-save-btn" onclick="saveCurrentJD()">💾 Save JD</button>
+            <span class="jd-hint">New to this role? Let AI break it down for you first.</span>
+          </div>
+        </div>
+
         <div id="jdPanel" class="jd-panel" style="display:none"></div>
       </section>
 
       <section class="card">
-        <h2>Upload Resumes</h2>
+        <h2><span class="icon">📄</span> Upload Resumes</h2>
         <div
           class="drop-zone"
           id="dropZone"
           ondragover="handleDragOver(event)"
           ondragleave="handleDragLeave(event)"
           ondrop="handleDrop(event)"
+          onclick="document.getElementById('resumes').click()"
         >
-          <div class="drop-icon">&#128196;</div>
-          <p><strong>Drag &amp; drop CVs here</strong> or <label class="browse-link" for="resumes">browse files</label></p>
-          <p class="drop-hint">Supports PDF and DOCX &bull; Multiple files allowed</p>
+          <div class="drop-icon">📂</div>
+          <p><strong>Drag &amp; drop CVs here</strong> or <span class="browse-link">browse files</span></p>
+          <p class="drop-hint">PDF and DOCX supported &bull; Multiple files allowed</p>
           <input
             type="file"
             id="resumes"
@@ -87,7 +628,7 @@
         <ul id="fileList" class="file-list"></ul>
       </section>
 
-      <div class="actions">
+      <div style="margin-bottom:16px;">
         <button type="submit" id="submitBtn" class="btn btn-primary">
           <span id="btnText">Screen Resumes</span>
           <span id="btnSpinner" class="spinner" style="display:none"></span>
@@ -100,9 +641,7 @@
     <section id="resultsSection" style="display:none">
       <div class="results-header">
         <h2>Results <span id="resultCount" class="badge"></span></h2>
-        <button class="btn btn-secondary" onclick="exportToExcel()">
-          &#8681; Export to Excel
-        </button>
+        <button class="btn btn-secondary" onclick="exportToExcel()">⬇ Export to Excel</button>
       </div>
 
       <div id="summaryBar" class="summary-bar">
@@ -114,11 +653,11 @@
           <span class="summary-value" id="statSuitable">—</span>
           <span class="summary-label">Suitable</span>
         </div>
-        <div class="summary-card summary-card--purple">
+        <div class="summary-card">
           <span class="summary-value" id="statAvg">—</span>
-          <span class="summary-label">Average Score</span>
+          <span class="summary-label">Avg Score</span>
         </div>
-        <div class="summary-card summary-card--blue">
+        <div class="summary-card">
           <span class="summary-value summary-value--name" id="statTop">—</span>
           <span class="summary-label">Top Candidate</span>
         </div>
@@ -130,12 +669,11 @@
         <table id="resultsTable">
           <thead>
             <tr>
-              <th>Rank</th>
+              <th>#</th>
               <th>Candidate</th>
               <th>Score</th>
-              <th>Suitable?</th>
-              <th>Exp.</th>
-              <th>Key Skills</th>
+              <th>Verdict</th>
+              <th>Skills</th>
               <th></th>
             </tr>
           </thead>
@@ -148,347 +686,411 @@
   <script>
     let screeningResults = [];
 
-    // ── Drag and drop ──
+    // ── Theme ──
+    function toggleTheme() {
+      const html = document.documentElement;
+      const isDark = html.getAttribute('data-theme') === 'dark';
+      html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+      document.getElementById('themeIcon').textContent = isDark ? '🌙' : '☀️';
+      document.getElementById('themeLabel').textContent = isDark ? 'Dark' : 'Light';
+      localStorage.setItem('theme', isDark ? 'light' : 'dark');
+    }
+    (function() {
+      const saved = localStorage.getItem('theme') || 'light';
+      document.documentElement.setAttribute('data-theme', saved);
+      if (saved === 'dark') {
+        document.getElementById('themeIcon') && (document.getElementById('themeIcon').textContent = '☀️');
+        document.getElementById('themeLabel') && (document.getElementById('themeLabel').textContent = 'Light');
+      }
+    })();
+
+    // ── JD Library ──
+    function getJDLibrary() {
+      try { return JSON.parse(localStorage.getItem('jd_library') || '[]'); } catch { return []; }
+    }
+    function saveJDLibrary(lib) {
+      localStorage.setItem('jd_library', JSON.stringify(lib));
+    }
+    function renderJDLibrary() {
+      const lib = getJDLibrary();
+      const row = document.getElementById('jdLibraryRow');
+      if (!lib.length) {
+        row.innerHTML = '<span class="jd-chip-empty">No saved JDs yet — fill in a JD below and save it</span>';
+        return;
+      }
+      row.innerHTML = lib.map((jd, i) => `
+        <span class="jd-chip" onclick="loadJD(${i})">${escHtml(jd.title)}</span>
+      `).join('') + `<span class="jd-chip" style="color:var(--pass-text);border-color:var(--pass-text);" onclick="clearJDLibrary()">Clear all</span>`;
+    }
+    function saveCurrentJD() {
+      const title = document.getElementById('job_title').value.trim();
+      const desc = document.getElementById('job_description').value.trim();
+      if (!title || !desc) { alert('Please fill in the Job Title and Job Description first.'); return; }
+      const lib = getJDLibrary();
+      const existing = lib.findIndex(j => j.title === title);
+      if (existing >= 0) { lib[existing] = { title, desc }; } else { lib.unshift({ title, desc }); }
+      if (lib.length > 10) lib.splice(10);
+      saveJDLibrary(lib);
+      renderJDLibrary();
+      const btn = document.querySelector('.jd-save-btn');
+      btn.textContent = '✓ Saved!';
+      setTimeout(() => btn.textContent = '💾 Save JD', 1800);
+    }
+    function loadJD(i) {
+      const lib = getJDLibrary();
+      if (!lib[i]) return;
+      document.getElementById('job_title').value = lib[i].title;
+      document.getElementById('job_description').value = lib[i].desc;
+    }
+    function clearJDLibrary() {
+      if (!confirm('Clear all saved JDs?')) return;
+      saveJDLibrary([]);
+      renderJDLibrary();
+    }
+    renderJDLibrary();
+
+    // ── JD file upload ──
+    async function handleJDUpload(input) {
+      const file = input.files[0];
+      if (!file) return;
+      document.getElementById('jdFileName').textContent = '⏳ Reading…';
+      const formData = new FormData();
+      formData.append('jd_file', file);
+      try {
+        const res = await fetch('/extract-jd', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) { alert(data.error || 'Failed to read file.'); document.getElementById('jdFileName').textContent = ''; return; }
+        document.getElementById('job_description').value = data.text || '';
+        document.getElementById('jdFileName').textContent = '✓ ' + file.name;
+      } catch (err) {
+        alert('Error reading file: ' + err.message);
+        document.getElementById('jdFileName').textContent = '';
+      }
+    }
+
+    // ── Drag and drop (resumes) ──
     function handleDragOver(e) {
       e.preventDefault();
-      document.getElementById("dropZone").classList.add("drag-over");
+      document.getElementById('dropZone').classList.add('drag-over');
     }
     function handleDragLeave(e) {
-      document.getElementById("dropZone").classList.remove("drag-over");
+      document.getElementById('dropZone').classList.remove('drag-over');
     }
     function handleDrop(e) {
       e.preventDefault();
-      document.getElementById("dropZone").classList.remove("drag-over");
-      const input = document.getElementById("resumes");
+      document.getElementById('dropZone').classList.remove('drag-over');
+      const input = document.getElementById('resumes');
       const existing = input.files ? Array.from(input.files) : [];
       const dropped = Array.from(e.dataTransfer.files);
       const merged = [...existing, ...dropped];
-      const dataTransfer = new DataTransfer();
-      merged.forEach(f => dataTransfer.items.add(f));
-      input.files = dataTransfer.files;
+      const dt = new DataTransfer();
+      merged.forEach(f => dt.items.add(f));
+      input.files = dt.files;
       updateFileList(input.files);
     }
-
     function updateFileList(files) {
-      const list = document.getElementById("fileList");
-      list.innerHTML = "";
+      const list = document.getElementById('fileList');
+      list.innerHTML = '';
       Array.from(files).forEach(f => {
-        const ext = f.name.split(".").pop().toLowerCase();
-        const icon = ext === "pdf" ? "&#128196;" : "&#128209;";
-        const li = document.createElement("li");
-        li.innerHTML = `<span>${icon} ${f.name}</span><span class="file-size">${formatSize(f.size)}</span>`;
+        const ext = f.name.split('.').pop().toLowerCase();
+        const icon = ext === 'pdf' ? '📄' : '📝';
+        const li = document.createElement('li');
+        li.innerHTML = `<span class="file-icon">${icon}</span><span class="file-name">${escHtml(f.name)}</span><span class="file-size">${formatSize(f.size)}</span>`;
         list.appendChild(li);
       });
     }
-
-    function formatSize(bytes) {
-      if (bytes < 1024) return bytes + " B";
-      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-      return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+    function formatSize(b) {
+      if (b < 1024) return b + ' B';
+      if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+      return (b/(1024*1024)).toFixed(1) + ' MB';
     }
 
     // ── JD Analyzer ──
     async function analyzeJD() {
-      const jobTitle = document.getElementById("job_title").value.trim();
-      const jobDesc = document.getElementById("job_description").value.trim();
-
-      if (!jobTitle || !jobDesc) {
-        alert("Please fill in the Job Title and Job Description first.");
-        return;
-      }
-
-      const btn = document.getElementById("understandBtn");
-      const btnText = document.getElementById("understandBtnText");
-      const spinner = document.getElementById("understandSpinner");
-      btn.disabled = true;
-      btnText.style.display = "none";
-      spinner.style.display = "inline-block";
-
+      const jobTitle = document.getElementById('job_title').value.trim();
+      const jobDesc = document.getElementById('job_description').value.trim();
+      if (!jobTitle || !jobDesc) { alert('Please fill in the Job Title and Job Description first.'); return; }
+      const btnText = document.getElementById('understandBtnText');
+      const spinner = document.getElementById('understandSpinner');
+      btnText.style.display = 'none'; spinner.style.display = 'inline-block';
       try {
-        const res = await fetch("/analyze-jd", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+        const res = await fetch('/analyze-jd', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ job_title: jobTitle, job_description: jobDesc }),
         });
         const data = await res.json();
-        if (!res.ok) { alert(data.error || "Failed to analyze JD."); return; }
+        if (!res.ok) { alert(data.error || 'Failed to analyze JD.'); return; }
         renderJDPanel(data);
       } catch (err) {
-        alert("Network error: " + err.message);
+        alert('Network error: ' + err.message);
       } finally {
-        btn.disabled = false;
-        btnText.style.display = "inline";
-        spinner.style.display = "none";
+        btnText.style.display = 'inline'; spinner.style.display = 'none';
       }
     }
 
     function renderJDPanel(data) {
-      const panel = document.getElementById("jdPanel");
-
-      const mustHTML  = (data.must_have      || []).map(r => `<li>${escHtml(r)}</li>`).join("");
-      const niceHTML  = (data.nice_to_have   || []).map(r => `<li>${escHtml(r)}</li>`).join("");
-      const watchHTML = (data.watch_out_for  || []).map(r => `<li>${escHtml(r)}</li>`).join("");
-
+      const panel = document.getElementById('jdPanel');
+      const mustHTML  = (data.must_have     || []).map(r => `<li>${escHtml(r)}</li>`).join('');
+      const niceHTML  = (data.nice_to_have  || []).map(r => `<li>${escHtml(r)}</li>`).join('');
+      const watchHTML = (data.watch_out_for || []).map(r => `<li>${escHtml(r)}</li>`).join('');
       panel.innerHTML = `
         <div class="jd-panel-header">
-          <span class="jd-panel-icon">&#128270;</span>
+          <span class="jd-panel-icon">🔎</span>
           <div>
             <h3>JD Breakdown</h3>
-            <p class="jd-summary">${escHtml(data.role_summary || "")}</p>
+            <p class="jd-summary">${escHtml(data.role_summary || '')}</p>
           </div>
         </div>
         <div class="jd-panel-grid">
-          <div class="jd-panel-section jd-must">
-            <h4>&#9989; Must Have</h4>
-            <ul>${mustHTML}</ul>
-          </div>
-          <div class="jd-panel-section jd-nice">
-            <h4>&#11088; Nice to Have</h4>
-            <ul>${niceHTML}</ul>
-          </div>
-          <div class="jd-panel-section jd-watch">
-            <h4>&#9888;&#65039; Watch Out For</h4>
-            <ul>${watchHTML}</ul>
-          </div>
-        </div>
-      `;
-      panel.style.display = "block";
+          <div class="jd-panel-section"><h4>✅ Must Have</h4><ul>${mustHTML}</ul></div>
+          <div class="jd-panel-section"><h4>⭐ Nice to Have</h4><ul>${niceHTML}</ul></div>
+          <div class="jd-panel-section"><h4>⚠️ Watch Out For</h4><ul>${watchHTML}</ul></div>
+        </div>`;
+      panel.style.display = 'block';
+    }
+
+    // ── Screening animation messages ──
+    const screeningMessages = [
+      ['Scanning resumes…', 'Claude is reading each CV'],
+      ['Matching skills…', 'Comparing against the JD'],
+      ['Scoring candidates…', 'Almost there'],
+    ];
+    let msgInterval;
+    function startScreeningAnim() {
+      let i = 0;
+      document.getElementById('screeningOverlay').classList.add('active');
+      document.getElementById('screeningText').textContent = screeningMessages[0][0];
+      document.getElementById('screeningSub').textContent = screeningMessages[0][1];
+      msgInterval = setInterval(() => {
+        i = (i + 1) % screeningMessages.length;
+        document.getElementById('screeningText').textContent = screeningMessages[i][0];
+        document.getElementById('screeningSub').textContent = screeningMessages[i][1];
+      }, 2200);
+    }
+    function stopScreeningAnim() {
+      clearInterval(msgInterval);
+      document.getElementById('screeningOverlay').classList.remove('active');
     }
 
     // ── Form submit ──
-    document.getElementById("screenForm").addEventListener("submit", async function (e) {
+    document.getElementById('screenForm').addEventListener('submit', async function(e) {
       e.preventDefault();
-      const btn = document.getElementById("submitBtn");
-      const btnText = document.getElementById("btnText");
-      const spinner = document.getElementById("btnSpinner");
-      const errorBanner = document.getElementById("errorBanner");
-
-      errorBanner.style.display = "none";
-      document.getElementById("resultsSection").style.display = "none";
+      const btn = document.getElementById('submitBtn');
+      const btnText = document.getElementById('btnText');
+      const spinner = document.getElementById('btnSpinner');
+      const errorBanner = document.getElementById('errorBanner');
+      errorBanner.style.display = 'none';
+      document.getElementById('resultsSection').style.display = 'none';
       btn.disabled = true;
-      btnText.textContent = "Screening…";
-      spinner.style.display = "inline-block";
-
+      btnText.textContent = 'Screening…';
+      spinner.style.display = 'inline-block';
+      startScreeningAnim();
       const formData = new FormData(this);
-
       try {
-        const res = await fetch("/screen", { method: "POST", body: formData });
+        const res = await fetch('/screen', { method: 'POST', body: formData });
         const data = await res.json();
-        if (!res.ok) { showError(data.error || "An error occurred."); return; }
+        if (!res.ok) { showError(data.error || 'An error occurred.'); return; }
         screeningResults = data.results || [];
         renderResults(screeningResults, data.errors || []);
       } catch (err) {
-        showError("Network error: " + err.message);
+        showError('Network error: ' + err.message);
       } finally {
         btn.disabled = false;
-        btnText.textContent = "Screen Resumes";
-        spinner.style.display = "none";
+        btnText.textContent = 'Screen Resumes';
+        spinner.style.display = 'none';
+        stopScreeningAnim();
       }
     });
 
     function showError(msg) {
-      const banner = document.getElementById("errorBanner");
+      const banner = document.getElementById('errorBanner');
       banner.textContent = msg;
-      banner.style.display = "block";
+      banner.style.display = 'block';
     }
 
     // ── Render results ──
-    function renderResults(results, errors) {
-      const section = document.getElementById("resultsSection");
-      const body = document.getElementById("resultsBody");
+    function getVerdict(score) {
+      if (score >= 75) return { label: 'Hire', cls: 'verdict-hire' };
+      if (score >= 50) return { label: 'Maybe', cls: 'verdict-maybe' };
+      return { label: 'Pass', cls: 'verdict-pass' };
+    }
+    function getScoreFillClass(score) {
+      if (score >= 90) return 'fill-excellent';
+      if (score >= 70) return 'fill-good';
+      if (score >= 50) return 'fill-mid';
+      if (score >= 30) return 'fill-weak';
+      return 'fill-low';
+    }
 
-      body.innerHTML = "";
-      document.getElementById("resultCount").textContent = results.length;
+    function renderResults(results, errors) {
+      const section = document.getElementById('resultsSection');
+      const body = document.getElementById('resultsBody');
+      body.innerHTML = '';
+      document.getElementById('resultCount').textContent = results.length;
 
       const total = results.length;
       const suitableCount = results.filter(r => r.suitable).length;
-      const avgScore = total > 0
-        ? Math.round(results.reduce((s, r) => s + (r.score ?? 0), 0) / total) : 0;
-      const topCandidate = total > 0 ? (results[0].candidate_name || "Unknown") : "—";
+      const avgScore = total > 0 ? Math.round(results.reduce((s, r) => s + (r.score ?? 0), 0) / total) : 0;
+      const topCandidate = total > 0 ? (results[0].candidate_name || 'Unknown') : '—';
 
-      document.getElementById("statTotal").textContent    = total;
-      document.getElementById("statSuitable").textContent = suitableCount;
-      document.getElementById("statAvg").textContent      = total > 0 ? avgScore : "—";
-      document.getElementById("statTop").textContent      = topCandidate;
+      document.getElementById('statTotal').textContent = total;
+      document.getElementById('statSuitable').textContent = suitableCount;
+      document.getElementById('statAvg').textContent = total > 0 ? avgScore + '%' : '—';
+      document.getElementById('statTop').textContent = topCandidate;
 
-      const warningBox = document.getElementById("warningBox");
+      const warningBox = document.getElementById('warningBox');
       if (errors.length > 0) {
-        warningBox.style.display = "block";
-        warningBox.innerHTML = "<strong>Some files had issues:</strong><ul>" +
-          errors.map(e => `<li>${escHtml(e)}</li>`).join("") + "</ul>";
+        warningBox.style.display = 'block';
+        warningBox.innerHTML = '<strong>Some files had issues:</strong><ul>' +
+          errors.map(e => `<li>${escHtml(e)}</li>`).join('') + '</ul>';
       } else {
-        warningBox.style.display = "none";
+        warningBox.style.display = 'none';
       }
 
-      const jobTitle = document.getElementById("job_title").value.trim();
+      const jobTitle = document.getElementById('job_title').value.trim();
 
       results.forEach((r, i) => {
         const score = r.score ?? 0;
-        let scoreClass;
-        if      (score >= 90) scoreClass = "score-excellent";
-        else if (score >= 70) scoreClass = "score-good";
-        else if (score >= 50) scoreClass = "score-mid";
-        else if (score >= 30) scoreClass = "score-weak";
-        else                  scoreClass = "score-low";
+        const verdict = getVerdict(score);
+        const fillCls = getScoreFillClass(score);
+        const skills = (r.key_skills_found || []).map(s => `<span class="skill-tag">${escHtml(s)}</span>`).join('');
 
-        const suitableBadge = r.suitable
-          ? '<span class="suitable-badge suitable-yes">&#10003; Suitable</span>'
-          : '<span class="suitable-badge suitable-no">&#10007; Not Suitable</span>';
-
-        const skills = (r.key_skills_found || [])
-          .map(s => `<span class="skill-tag">${escHtml(s)}</span>`).join("");
-        const years = r.years_experience != null ? r.years_experience + " yr" : "—";
-
-        // Main row
-        const tr = document.createElement("tr");
-        tr.className = "main-row";
+        const tr = document.createElement('tr');
+        tr.className = 'main-row';
         tr.innerHTML = `
-          <td class="rank">#${i + 1}</td>
-          <td class="candidate-name">${escHtml(r.candidate_name || "Unknown")}</td>
-          <td><div class="score-badge ${scoreClass}">${score}</div></td>
-          <td>${suitableBadge}</td>
-          <td class="exp-cell">${years}</td>
-          <td class="skills-cell">${skills}</td>
-          <td class="actions-cell">
-            <button class="expand-btn" id="expandBtn-${i}" onclick="toggleDetail(${i}, this)">Details &#9660;</button>
+          <td class="rank">${i + 1}</td>
+          <td class="candidate-name">${escHtml(r.candidate_name || 'Unknown')}</td>
+          <td>
+            <div class="score-wrap">
+              <div class="score-bar"><div class="score-fill ${fillCls}" style="width:${score}%"></div></div>
+              <span class="score-num">${score}%</span>
+            </div>
           </td>
-        `;
+          <td><span class="verdict ${verdict.cls}">${verdict.label}</span></td>
+          <td>${skills}</td>
+          <td>
+            <div class="actions-cell">
+              <button class="shortlist-btn" id="sl-${i}" onclick="toggleShortlist(${i}, this)">☆ Shortlist</button>
+              <button class="expand-btn" id="expandBtn-${i}" onclick="toggleDetail(${i}, this)">Details ▾</button>
+            </div>
+          </td>`;
         body.appendChild(tr);
 
-        // Detail row
-        const detailTr = document.createElement("tr");
-        detailTr.className = "detail-row";
-        detailTr.id = `detail-${i}`;
-        detailTr.style.display = "none";
+        // Requirements table from must_have analysis (derived from strengths/gaps)
+        const requirements = deriveRequirements(r);
+        const reqRowsHTML = requirements.map(req =>
+          `<tr>
+            <td class="req-name">${escHtml(req.label)}</td>
+            <td class="req-check">${req.met ? '<span class="tick">✓</span>' : '<span class="cross">✗</span>'}</td>
+          </tr>`
+        ).join('');
 
-        const strengthsHTML = (r.strengths || [])
-          .map(s => `<li class="strength-item">${escHtml(s)}</li>`).join("");
-        const gapsHTML = (r.gaps || [])
-          .map(g => `<li class="gap-item">${escHtml(g)}</li>`).join("");
+        // Key takeaways (top 3 from email_bullets)
+        const takeaways = (r.email_bullets || r.strengths || []).slice(0, 3);
+        const takeawaysHTML = takeaways.map(t => `<li>${escHtml(t)}</li>`).join('');
 
         const emailText = buildEmailDraft(r, jobTitle);
         const emailId = `emailDraft-${i}`;
 
+        const detailTr = document.createElement('tr');
+        detailTr.className = 'detail-row';
+        detailTr.id = `detail-${i}`;
+        detailTr.style.display = 'none';
         detailTr.innerHTML = `
-          <td colspan="7">
+          <td colspan="6">
             <div class="detail-panel">
-              <div class="detail-section">
-                ${strengthsHTML ? `
-                  <h4 class="detail-heading detail-heading--green">&#10003; Strengths</h4>
-                  <ul class="detail-list">${strengthsHTML}</ul>
-                ` : ""}
-                ${gapsHTML ? `
-                  <h4 class="detail-heading detail-heading--red" style="margin-top:1rem">&#9888; Concerns</h4>
-                  <ul class="detail-list">${gapsHTML}</ul>
-                ` : ""}
+              <div>
+                <div class="detail-heading">Requirements</div>
+                <table class="req-table"><tbody>${reqRowsHTML}</tbody></table>
               </div>
-              <div class="detail-section">
-                <h4 class="detail-heading">&#9993; Email to Client</h4>
-                <p class="email-hint">${r.suitable ? "Use these points when presenting this candidate to your client." : "This candidate is not being put forward — adapt this note if needed."}</p>
+              <div>
+                <div class="detail-heading detail-heading--green">Key takeaways</div>
+                <ul class="takeaways">${takeawaysHTML}</ul>
+              </div>
+              <div>
+                <div class="detail-heading">Email to client</div>
                 <div class="email-draft" id="${emailId}">${escHtml(emailText)}</div>
-                <button class="copy-btn" onclick="copyEmail('${emailId}', this)">&#128203; Copy Email</button>
+                <button class="copy-btn" onclick="copyEmail('${emailId}', this)">📋 Copy email</button>
               </div>
             </div>
-          </td>
-        `;
+          </td>`;
         body.appendChild(detailTr);
       });
 
-      section.style.display = "block";
-      section.scrollIntoView({ behavior: "smooth", block: "start" });
+      section.style.display = 'block';
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    // ── Email draft builder ──
+    // Derive requirements from strengths/gaps for the tick table
+    function deriveRequirements(r) {
+      const reqs = [];
+      (r.strengths || []).forEach(s => reqs.push({ label: s.length > 50 ? s.slice(0, 50) + '…' : s, met: true }));
+      (r.gaps || []).forEach(g => reqs.push({ label: g.length > 50 ? g.slice(0, 50) + '…' : g, met: false }));
+      return reqs.slice(0, 6);
+    }
+
+    function toggleShortlist(i, btn) {
+      btn.classList.toggle('active');
+      btn.textContent = btn.classList.contains('active') ? '★ Shortlisted' : '☆ Shortlist';
+    }
+
+    function toggleDetail(i, btn) {
+      const row = document.getElementById(`detail-${i}`);
+      const isHidden = row.style.display === 'none';
+      row.style.display = isHidden ? 'table-row' : 'none';
+      btn.innerHTML = isHidden ? 'Details ▴' : 'Details ▾';
+      btn.classList.toggle('expand-btn--open', isHidden);
+    }
+
+    // ── Email draft ──
     function buildEmailDraft(r, jobTitle) {
-      const name = r.candidate_name && r.candidate_name !== "Unknown"
-        ? r.candidate_name : "the candidate";
-      const bullets = (r.email_bullets || []).map(b => `• ${b}`).join("\n");
-
+      const name = r.candidate_name && r.candidate_name !== 'Unknown' ? r.candidate_name : 'the candidate';
+      const bullets = (r.email_bullets || []).map(b => `• ${b}`).join('\n');
       if (r.suitable) {
-        return `Subject: CV Submission – ${name} | ${jobTitle}
-
-Dear [Client Name],
-
-I am pleased to present ${name} for the ${jobTitle} position. Based on my review of their profile, I believe they would be a strong fit for your team.
-
-Key highlights:
-${bullets}
-
-Please find their CV attached. I would be happy to arrange an introductory call or interview at your convenience.
-
-Best regards,
-[Your Name]`;
+        return `Subject: CV Submission – ${name} | ${jobTitle}\n\nDear [Client Name],\n\nI am pleased to present ${name} for the ${jobTitle} position. Based on my review, I believe they would be a strong fit for your team.\n\nKey highlights:\n${bullets}\n\nPlease find their CV attached. Happy to arrange an intro call at your convenience.\n\nBest regards,\n[Your Name]`;
       } else {
-        return `Subject: Re: ${jobTitle} – Candidate Update
-
-Dear [Client Name],
-
-After reviewing ${name}'s profile against your ${jobTitle} requirements, we have decided not to put this candidate forward at this time.
-
-Key reasons:
-${bullets}
-
-We are continuing to source candidates and will share suitable profiles shortly.
-
-Best regards,
-[Your Name]`;
+        return `Subject: Re: ${jobTitle} – Candidate Update\n\nDear [Client Name],\n\nAfter reviewing ${name}'s profile against your ${jobTitle} requirements, we have decided not to put this candidate forward at this time.\n\nKey reasons:\n${bullets}\n\nWe are continuing to source candidates and will share suitable profiles shortly.\n\nBest regards,\n[Your Name]`;
       }
     }
 
-    // ── Toggle detail row ──
-    function toggleDetail(i, btn) {
-      const row = document.getElementById(`detail-${i}`);
-      const isHidden = row.style.display === "none";
-      row.style.display = isHidden ? "table-row" : "none";
-      btn.innerHTML = isHidden ? "Details &#9650;" : "Details &#9660;";
-      btn.classList.toggle("expand-btn--open", isHidden);
-    }
-
-    // ── Copy email to clipboard ──
     async function copyEmail(id, btn) {
       const text = document.getElementById(id).textContent;
-      try {
-        await navigator.clipboard.writeText(text);
-      } catch {
+      try { await navigator.clipboard.writeText(text); } catch {
         const el = document.getElementById(id);
         const range = document.createRange();
         range.selectNodeContents(el);
         window.getSelection().removeAllRanges();
         window.getSelection().addRange(range);
-        document.execCommand("copy");
+        document.execCommand('copy');
         window.getSelection().removeAllRanges();
       }
       const orig = btn.innerHTML;
-      btn.innerHTML = "&#10003; Copied!";
-      btn.classList.add("copy-btn--done");
-      setTimeout(() => { btn.innerHTML = orig; btn.classList.remove("copy-btn--done"); }, 2000);
+      btn.innerHTML = '✓ Copied!';
+      btn.classList.add('copy-btn--done');
+      setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('copy-btn--done'); }, 2000);
     }
 
     // ── Excel export ──
     async function exportToExcel() {
       if (!screeningResults.length) return;
-      const res = await fetch("/export", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ results: screeningResults }),
       });
-      if (!res.ok) { alert("Export failed."); return; }
+      if (!res.ok) { alert('Export failed.'); return; }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "resume_screening_results.xlsx";
-      a.click();
+      const a = document.createElement('a');
+      a.href = url; a.download = 'resume_screening_results.xlsx'; a.click();
       URL.revokeObjectURL(url);
     }
 
-    // ── Helpers ──
     function escHtml(str) {
       return String(str)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
   </script>
 </body>

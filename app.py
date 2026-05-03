@@ -20,8 +20,8 @@ def allowed_file(filename):
 
 
 def clean_text(text):
-    text = text.replace(" ", "\n").replace(" ", "\n")
-    text = text.replace(" ", " ").replace("﻿", "")
+    text = text.replace("\u00a0", "\n").replace("\u2028", "\n")
+    text = text.replace("\u00ad", " ").replace("\ufeff", "")
     text = text.encode("utf-8", errors="replace").decode("utf-8")
     return text.strip()
 
@@ -80,13 +80,12 @@ Respond with ONLY a valid JSON object (no markdown, no explanation):
     return json.loads(raw)
 
 
-def score_resume_with_claude(cv_text, job_title, job_description, min_years_experience):
+def score_resume_with_claude(cv_text, job_title, job_description):
     client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
     prompt = f"""You are an expert recruiter. Evaluate this CV against the job requirements below.
 
 Job Title: {job_title}
-Minimum Years of Experience: {min_years_experience}
 Job Description:
 {job_description}
 
@@ -110,7 +109,7 @@ Respond with ONLY a valid JSON object (no markdown, no code fences, no explanati
 Instructions:
 - strengths: 2-4 specific reasons this person meets the JD requirements, referencing actual CV details
 - gaps: 1-3 notable gaps; use an empty array if there are none
-- email_bullets: 3-4 compelling, specific points drawn from the CV that directly address this JD — what a recruiter would write to a client
+- email_bullets: 3-4 compelling, specific points drawn from the CV that directly address this JD
 
 Scoring guide: 90-100 exceptional, 70-89 strong, 50-69 partial, 30-49 weak, 0-29 poor."""
 
@@ -155,11 +154,31 @@ def analyze_jd():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/extract-jd", methods=["POST"])
+def extract_jd():
+    """Extract text from an uploaded JD file (PDF or DOCX)."""
+    file = request.files.get("jd_file")
+    if not file or file.filename == "":
+        return jsonify({"error": "No file uploaded."}), 400
+
+    filename = secure_filename(file.filename)
+    if not allowed_file(filename):
+        return jsonify({"error": "Unsupported file type. Use PDF or DOCX."}), 400
+
+    try:
+        file_bytes = file.read()
+        text = extract_text(file_bytes, filename)
+        if not text:
+            return jsonify({"error": "Could not extract text from file."}), 400
+        return jsonify({"text": text})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/screen", methods=["POST"])
 def screen():
     job_title = request.form.get("job_title", "").strip()
     job_description = request.form.get("job_description", "").strip()
-    min_years = request.form.get("min_years_experience", "0").strip()
 
     if not job_title or not job_description:
         return jsonify({"error": "Job title and job description are required."}), 400
@@ -191,7 +210,7 @@ def screen():
                 errors.append(f"{filename}: could not extract text from file.")
                 continue
 
-            result = score_resume_with_claude(cv_text, job_title, job_description, min_years)
+            result = score_resume_with_claude(cv_text, job_title, job_description)
             result["filename"] = filename
             results.append(result)
 
@@ -215,11 +234,11 @@ def export():
     ws = wb.active
     ws.title = "Screening Results"
 
-    headers = ["Rank", "Candidate Name", "Score", "Suitable", "Years Exp.", "Key Skills", "Strengths", "Gaps", "Email Bullets"]
+    headers = ["Rank", "Candidate Name", "Score", "Verdict", "Suitable", "Key Skills", "Strengths", "Gaps", "Email Bullets"]
     ws.append(headers)
 
     header_font = openpyxl.styles.Font(bold=True, color="FFFFFF")
-    header_fill = openpyxl.styles.PatternFill(fill_type="solid", fgColor="4F46E5")
+    header_fill = openpyxl.styles.PatternFill(fill_type="solid", fgColor="1D9E75")
     header_alignment = openpyxl.styles.Alignment(horizontal="center", vertical="center", wrap_text=True)
 
     for col_num, _ in enumerate(headers, 1):
@@ -228,17 +247,21 @@ def export():
         cell.fill = header_fill
         cell.alignment = header_alignment
 
+    def get_verdict(score):
+        if score >= 75: return "Hire"
+        if score >= 50: return "Maybe"
+        return "Pass"
+
     for rank, r in enumerate(results, 1):
         score = r.get("score", 0)
+        verdict = get_verdict(score)
         suitable = "Yes" if r.get("suitable") else "No"
         skills = ", ".join(r.get("key_skills_found", []))
-        years = r.get("years_experience")
-        years_str = str(years) if years is not None else "N/A"
         strengths = "\n".join(f"• {s}" for s in r.get("strengths", []))
         gaps = "\n".join(f"• {g}" for g in r.get("gaps", []))
         email_bullets = "\n".join(f"• {b}" for b in r.get("email_bullets", []))
 
-        row = [rank, r.get("candidate_name", "Unknown"), score, suitable, years_str, skills, strengths, gaps, email_bullets]
+        row = [rank, r.get("candidate_name", "Unknown"), score, verdict, suitable, skills, strengths, gaps, email_bullets]
         ws.append(row)
 
         score_cell = ws.cell(row=rank + 1, column=3)
@@ -253,13 +276,16 @@ def export():
         else:
             score_cell.fill = openpyxl.styles.PatternFill(fill_type="solid", fgColor="FEE2E2")
 
-        suitable_cell = ws.cell(row=rank + 1, column=4)
-        if r.get("suitable"):
-            suitable_cell.fill = openpyxl.styles.PatternFill(fill_type="solid", fgColor="DCFCE7")
-            suitable_cell.font = openpyxl.styles.Font(bold=True, color="15803D")
+        verdict_cell = ws.cell(row=rank + 1, column=4)
+        if verdict == "Hire":
+            verdict_cell.fill = openpyxl.styles.PatternFill(fill_type="solid", fgColor="DCFCE7")
+            verdict_cell.font = openpyxl.styles.Font(bold=True, color="15803D")
+        elif verdict == "Maybe":
+            verdict_cell.fill = openpyxl.styles.PatternFill(fill_type="solid", fgColor="FEF9C3")
+            verdict_cell.font = openpyxl.styles.Font(bold=True, color="92400E")
         else:
-            suitable_cell.fill = openpyxl.styles.PatternFill(fill_type="solid", fgColor="FEE2E2")
-            suitable_cell.font = openpyxl.styles.Font(bold=True, color="B91C1C")
+            verdict_cell.fill = openpyxl.styles.PatternFill(fill_type="solid", fgColor="FEE2E2")
+            verdict_cell.font = openpyxl.styles.Font(bold=True, color="B91C1C")
 
         for col in [7, 8, 9]:
             ws.cell(row=rank + 1, column=col).alignment = openpyxl.styles.Alignment(wrap_text=True, vertical="top")
