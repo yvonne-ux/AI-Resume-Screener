@@ -130,6 +130,16 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/debug-env")
+def debug_env():
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    return jsonify({
+        "key_found": bool(key),
+        "key_preview": key[:12] + "..." if key else "NOT SET",
+        "env_vars": [k for k in os.environ.keys()]
+    })
+
+
 @app.route("/analyze-jd", methods=["POST"])
 def analyze_jd():
     data = request.get_json()
