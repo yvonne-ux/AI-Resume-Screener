@@ -52,7 +52,7 @@ def extract_text(file_bytes, filename):
 
 
 def analyze_jd_with_claude(job_title, job_description):
-    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+    client = anthropic.Anthropic()
 
     prompt = f"""You are an expert recruiter. Analyze this job description and extract what a junior recruiter needs to know to screen candidates effectively.
 
@@ -81,7 +81,7 @@ Respond with ONLY a valid JSON object (no markdown, no explanation):
 
 
 def score_resume_with_claude(cv_text, job_title, job_description):
-    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+    client = anthropic.Anthropic()
 
     prompt = f"""You are an expert recruiter. Evaluate this CV against the job requirements below.
 
@@ -139,10 +139,6 @@ def analyze_jd():
     if not job_title or not job_description:
         return jsonify({"error": "Job title and job description are required."}), 400
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        return jsonify({"error": "ANTHROPIC_API_KEY environment variable is not set."}), 500
-
     try:
         result = analyze_jd_with_claude(job_title, job_description)
         return jsonify(result)
@@ -186,10 +182,6 @@ def screen():
     files = request.files.getlist("resumes")
     if not files or all(f.filename == "" for f in files):
         return jsonify({"error": "Please upload at least one resume."}), 400
-
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        return jsonify({"error": "ANTHROPIC_API_KEY environment variable is not set."}), 500
 
     results = []
     errors = []
