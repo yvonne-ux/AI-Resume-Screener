@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Resume Screener</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>AI Resume Screener</h1>
+      <p class="subtitle">Upload CVs and let Claude tell you who's suitable — and exactly what to say to your client</p>
+    </header>
+
+    <form id="screenForm" enctype="multipart/form-data">
+      <section class="card">
+        <h2>Job Criteria</h2>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="job_title">Job Title <span class="required">*</span></label>
+            <input
+              type="text"
+              id="job_title"
+              name="job_title"
+              placeholder="e.g. Senior Backend Engineer"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label for="min_years_experience">Minimum Years of Experience</label>
+            <input
+              type="number"
+              id="min_years_experience"
+              name="min_years_experience"
+              placeholder="e.g. 3"
+              min="0"
+              max="50"
+              value="0"
+            />
+          </div>
+          <div class="form-group full-width">
+            <label for="job_description">Job Description <span class="required">*</span></label>
+            <textarea
+              id="job_description"
+              name="job_description"
+              placeholder="Paste the full job description here — responsibilities, required skills, qualifications…"
+              rows="8"
+              required
+            ></textarea>
+            <div class="jd-action-row">
+              <button type="button" id="understandBtn" class="btn btn-understand" onclick="analyzeJD()">
+                <span id="understandBtnText">&#128269; Understand this JD</span>
+                <span id="understandSpinner" class="spinner spinner--dark" style="display:none"></span>
+              </button>
+              <span class="jd-hint">New to this role? Let AI break it down for you first.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- JD Insight Panel -->
+        <div id="jdPanel" class="jd-panel" style="display:none"></div>
+      </section>
+
+      <section class="card">
+        <h2>Upload Resumes</h2>
+        <div
+          class="drop-zone"
+          id="dropZone"
+          ondragover="handleDragOver(event)"
+          ondragleave="handleDragLeave(event)"
+          ondrop="handleDrop(event)"
+        >
+          <div class="drop-icon">&#128196;</div>
+          <p><strong>Drag &amp; drop CVs here</strong> or <label class="browse-link" for="resumes">browse files</label></p>
+          <p class="drop-hint">Supports PDF and DOCX &bull; Multiple files allowed</p>
+          <input
+            type="file"
+            id="resumes"
+            name="resumes"
+            accept=".pdf,.doc,.docx"
+            multiple
+            style="display:none"
+            onchange="updateFileList(this.files)"
+          />
+        </div>
+        <ul id="fileList" class="file-list"></ul>
+      </section>
+
+      <div class="actions">
+        <button type="submit" id="submitBtn" class="btn btn-primary">
+          <span id="btnText">Screen Resumes</span>
+          <span id="btnSpinner" class="spinner" style="display:none"></span>
+        </button>
+      </div>
+    </form>
+
+    <div id="errorBanner" class="error-banner" style="display:none"></div>
+
+    <section id="resultsSection" style="display:none">
+      <div class="results-header">
+        <h2>Results <span id="resultCount" class="badge"></span></h2>
+        <button class="btn btn-secondary" onclick="exportToExcel()">
+          &#8681; Export to Excel
+        </button>
+      </div>
+
+      <div id="summaryBar" class="summary-bar">
+        <div class="summary-card">
+          <span class="summary-value" id="statTotal">—</span>
+          <span class="summary-label">CVs Screened</span>
+        </div>
+        <div class="summary-card summary-card--green">
+          <span class="summary-value" id="statSuitable">—</span>
+          <span class="summary-label">Suitable</span>
+        </div>
+        <div class="summary-card summary-card--purple">
+          <span class="summary-value" id="statAvg">—</span>
+          <span class="summary-label">Average Score</span>
+        </div>
+        <div class="summary-card summary-card--blue">
+          <span class="summary-value summary-value--name" id="statTop">—</span>
+          <span class="summary-label">Top Candidate</span>
+        </div>
+      </div>
+
+      <div id="warningBox" class="warning-box" style="display:none"></div>
+
+      <div class="table-wrapper">
+        <table id="resultsTable">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Candidate</th>
+              <th>Score</th>
+              <th>Suitable?</th>
+              <th>Exp.</th>
+              <th>Key Skills</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    let screeningResults = [];
+
+    // ── Drag and drop ──
+    function handleDragOver(e) {
+      e.preventDefault();
+      document.getElementById("dropZone").classList.add("drag-over");
+    }
+    function handleDragLeave(e) {
+      document.getElementById("dropZone").classList.remove("drag-over");
+    }
+    function handleDrop(e) {
+      e.preventDefault();
+      document.getElementById("dropZone").classList.remove("drag-over");
+      const input = document.getElementById("resumes");
+      const existing = input.files ? Array.from(input.files) : [];
+      const dropped = Array.from(e.dataTransfer.files);
+      const merged = [...existing, ...dropped];
+      const dataTransfer = new DataTransfer();
+      merged.forEach(f => dataTransfer.items.add(f));
+      input.files = dataTransfer.files;
+      updateFileList(input.files);
+    }
+
+    function updateFileList(files) {
+      const list = document.getElementById("fileList");
+      list.innerHTML = "";
+      Array.from(files).forEach(f => {
+        const ext = f.name.split(".").pop().toLowerCase();
+        const icon = ext === "pdf" ? "&#128196;" : "&#128209;";
+        const li = document.createElement("li");
+        li.innerHTML = `<span>${icon} ${f.name}</span><span class="file-size">${formatSize(f.size)}</span>`;
+        list.appendChild(li);
+      });
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + " B";
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+      return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+    }
+
+    // ── JD Analyzer ──
+    async function analyzeJD() {
+      const jobTitle = document.getElementById("job_title").value.trim();
+      const jobDesc = document.getElementById("job_description").value.trim();
+
+      if (!jobTitle || !jobDesc) {
+        alert("Please fill in the Job Title and Job Description first.");
+        return;
+      }
+
+      const btn = document.getElementById("understandBtn");
+      const btnText = document.getElementById("understandBtnText");
+      const spinner = document.getElementById("understandSpinner");
+      btn.disabled = true;
+      btnText.style.display = "none";
+      spinner.style.display = "inline-block";
+
+      try {
+        const res = await fetch("/analyze-jd", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ job_title: jobTitle, job_description: jobDesc }),
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.error || "Failed to analyze JD."); return; }
+        renderJDPanel(data);
+      } catch (err) {
+        alert("Network error: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btnText.style.display = "inline";
+        spinner.style.display = "none";
+      }
+    }
+
+    function renderJDPanel(data) {
+      const panel = document.getElementById("jdPanel");
+
+      const mustHTML  = (data.must_have      || []).map(r => `<li>${escHtml(r)}</li>`).join("");
+      const niceHTML  = (data.nice_to_have   || []).map(r => `<li>${escHtml(r)}</li>`).join("");
+      const watchHTML = (data.watch_out_for  || []).map(r => `<li>${escHtml(r)}</li>`).join("");
+
+      panel.innerHTML = `
+        <div class="jd-panel-header">
+          <span class="jd-panel-icon">&#128270;</span>
+          <div>
+            <h3>JD Breakdown</h3>
+            <p class="jd-summary">${escHtml(data.role_summary || "")}</p>
+          </div>
+        </div>
+        <div class="jd-panel-grid">
+          <div class="jd-panel-section jd-must">
+            <h4>&#9989; Must Have</h4>
+            <ul>${mustHTML}</ul>
+          </div>
+          <div class="jd-panel-section jd-nice">
+            <h4>&#11088; Nice to Have</h4>
+            <ul>${niceHTML}</ul>
+          </div>
+          <div class="jd-panel-section jd-watch">
+            <h4>&#9888;&#65039; Watch Out For</h4>
+            <ul>${watchHTML}</ul>
+          </div>
+        </div>
+      `;
+      panel.style.display = "block";
+    }
+
+    // ── Form submit ──
+    document.getElementById("screenForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const btn = document.getElementById("submitBtn");
+      const btnText = document.getElementById("btnText");
+      const spinner = document.getElementById("btnSpinner");
+      const errorBanner = document.getElementById("errorBanner");
+
+      errorBanner.style.display = "none";
+      document.getElementById("resultsSection").style.display = "none";
+      btn.disabled = true;
+      btnText.textContent = "Screening…";
+      spinner.style.display = "inline-block";
+
+      const formData = new FormData(this);
+
+      try {
+        const res = await fetch("/screen", { method: "POST", body: formData });
+        const data = await res.json();
+        if (!res.ok) { showError(data.error || "An error occurred."); return; }
+        screeningResults = data.results || [];
+        renderResults(screeningResults, data.errors || []);
+      } catch (err) {
+        showError("Network error: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btnText.textContent = "Screen Resumes";
+        spinner.style.display = "none";
+      }
+    });
+
+    function showError(msg) {
+      const banner = document.getElementById("errorBanner");
+      banner.textContent = msg;
+      banner.style.display = "block";
+    }
+
+    // ── Render results ──
+    function renderResults(results, errors) {
+      const section = document.getElementById("resultsSection");
+      const body = document.getElementById("resultsBody");
+
+      body.innerHTML = "";
+      document.getElementById("resultCount").textContent = results.length;
+
+      const total = results.length;
+      const suitableCount = results.filter(r => r.suitable).length;
+      const avgScore = total > 0
+        ? Math.round(results.reduce((s, r) => s + (r.score ?? 0), 0) / total) : 0;
+      const topCandidate = total > 0 ? (results[0].candidate_name || "Unknown") : "—";
+
+      document.getElementById("statTotal").textContent    = total;
+      document.getElementById("statSuitable").textContent = suitableCount;
+      document.getElementById("statAvg").textContent      = total > 0 ? avgScore : "—";
+      document.getElementById("statTop").textContent      = topCandidate;
+
+      const warningBox = document.getElementById("warningBox");
+      if (errors.length > 0) {
+        warningBox.style.display = "block";
+        warningBox.innerHTML = "<strong>Some files had issues:</strong><ul>" +
+          errors.map(e => `<li>${escHtml(e)}</li>`).join("") + "</ul>";
+      } else {
+        warningBox.style.display = "none";
+      }
+
+      const jobTitle = document.getElementById("job_title").value.trim();
+
+      results.forEach((r, i) => {
+        const score = r.score ?? 0;
+        let scoreClass;
+        if      (score >= 90) scoreClass = "score-excellent";
+        else if (score >= 70) scoreClass = "score-good";
+        else if (score >= 50) scoreClass = "score-mid";
+        else if (score >= 30) scoreClass = "score-weak";
+        else                  scoreClass = "score-low";
+
+        const suitableBadge = r.suitable
+          ? '<span class="suitable-badge suitable-yes">&#10003; Suitable</span>'
+          : '<span class="suitable-badge suitable-no">&#10007; Not Suitable</span>';
+
+        const skills = (r.key_skills_found || [])
+          .map(s => `<span class="skill-tag">${escHtml(s)}</span>`).join("");
+        const years = r.years_experience != null ? r.years_experience + " yr" : "—";
+
+        // Main row
+        const tr = document.createElement("tr");
+        tr.className = "main-row";
+        tr.innerHTML = `
+          <td class="rank">#${i + 1}</td>
+          <td class="candidate-name">${escHtml(r.candidate_name || "Unknown")}</td>
+          <td><div class="score-badge ${scoreClass}">${score}</div></td>
+          <td>${suitableBadge}</td>
+          <td class="exp-cell">${years}</td>
+          <td class="skills-cell">${skills}</td>
+          <td class="actions-cell">
+            <button class="expand-btn" id="expandBtn-${i}" onclick="toggleDetail(${i}, this)">Details &#9660;</button>
+          </td>
+        `;
+        body.appendChild(tr);
+
+        // Detail row
+        const detailTr = document.createElement("tr");
+        detailTr.className = "detail-row";
+        detailTr.id = `detail-${i}`;
+        detailTr.style.display = "none";
+
+        const strengthsHTML = (r.strengths || [])
+          .map(s => `<li class="strength-item">${escHtml(s)}</li>`).join("");
+        const gapsHTML = (r.gaps || [])
+          .map(g => `<li class="gap-item">${escHtml(g)}</li>`).join("");
+
+        const emailText = buildEmailDraft(r, jobTitle);
+        const emailId = `emailDraft-${i}`;
+
+        detailTr.innerHTML = `
+          <td colspan="7">
+            <div class="detail-panel">
+              <div class="detail-section">
+                ${strengthsHTML ? `
+                  <h4 class="detail-heading detail-heading--green">&#10003; Strengths</h4>
+                  <ul class="detail-list">${strengthsHTML}</ul>
+                ` : ""}
+                ${gapsHTML ? `
+                  <h4 class="detail-heading detail-heading--red" style="margin-top:1rem">&#9888; Concerns</h4>
+                  <ul class="detail-list">${gapsHTML}</ul>
+                ` : ""}
+              </div>
+              <div class="detail-section">
+                <h4 class="detail-heading">&#9993; Email to Client</h4>
+                <p class="email-hint">${r.suitable ? "Use these points when presenting this candidate to your client." : "This candidate is not being put forward — adapt this note if needed."}</p>
+                <div class="email-draft" id="${emailId}">${escHtml(emailText)}</div>
+                <button class="copy-btn" onclick="copyEmail('${emailId}', this)">&#128203; Copy Email</button>
+              </div>
+            </div>
+          </td>
+        `;
+        body.appendChild(detailTr);
+      });
+
+      section.style.display = "block";
+      section.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    // ── Email draft builder ──
+    function buildEmailDraft(r, jobTitle) {
+      const name = r.candidate_name && r.candidate_name !== "Unknown"
+        ? r.candidate_name : "the candidate";
+      const bullets = (r.email_bullets || []).map(b => `• ${b}`).join("\n");
+
+      if (r.suitable) {
+        return `Subject: CV Submission – ${name} | ${jobTitle}
+
+Dear [Client Name],
+
+I am pleased to present ${name} for the ${jobTitle} position. Based on my review of their profile, I believe they would be a strong fit for your team.
+
+Key highlights:
+${bullets}
+
+Please find their CV attached. I would be happy to arrange an introductory call or interview at your convenience.
+
+Best regards,
+[Your Name]`;
+      } else {
+        return `Subject: Re: ${jobTitle} – Candidate Update
+
+Dear [Client Name],
+
+After reviewing ${name}'s profile against your ${jobTitle} requirements, we have decided not to put this candidate forward at this time.
+
+Key reasons:
+${bullets}
+
+We are continuing to source candidates and will share suitable profiles shortly.
+
+Best regards,
+[Your Name]`;
+      }
+    }
+
+    // ── Toggle detail row ──
+    function toggleDetail(i, btn) {
+      const row = document.getElementById(`detail-${i}`);
+      const isHidden = row.style.display === "none";
+      row.style.display = isHidden ? "table-row" : "none";
+      btn.innerHTML = isHidden ? "Details &#9650;" : "Details &#9660;";
+      btn.classList.toggle("expand-btn--open", isHidden);
+    }
+
+    // ── Copy email to clipboard ──
+    async function copyEmail(id, btn) {
+      const text = document.getElementById(id).textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        const el = document.getElementById(id);
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        document.execCommand("copy");
+        window.getSelection().removeAllRanges();
+      }
+      const orig = btn.innerHTML;
+      btn.innerHTML = "&#10003; Copied!";
+      btn.classList.add("copy-btn--done");
+      setTimeout(() => { btn.innerHTML = orig; btn.classList.remove("copy-btn--done"); }, 2000);
+    }
+
+    // ── Excel export ──
+    async function exportToExcel() {
+      if (!screeningResults.length) return;
+      const res = await fetch("/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ results: screeningResults }),
+      });
+      if (!res.ok) { alert("Export failed."); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "resume_screening_results.xlsx";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // ── Helpers ──
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+  </script>
+</body>
+</html>
