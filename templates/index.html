@@ -850,30 +850,17 @@
       panel.style.display = 'block';
     }
 
-    // ── Screening animation messages ──
-    const screeningMessages = [
-      ['Scanning resumes…', 'Claude is reading each CV'],
-      ['Matching skills…', 'Comparing against the JD'],
-      ['Scoring candidates…', 'Almost there'],
-    ];
-    let msgInterval;
-    function startScreeningAnim() {
-      let i = 0;
+    // ── Screening animation ──
+    function startScreeningAnim(current, total) {
       document.getElementById('screeningOverlay').classList.add('active');
-      document.getElementById('screeningText').textContent = screeningMessages[0][0];
-      document.getElementById('screeningSub').textContent = screeningMessages[0][1];
-      msgInterval = setInterval(() => {
-        i = (i + 1) % screeningMessages.length;
-        document.getElementById('screeningText').textContent = screeningMessages[i][0];
-        document.getElementById('screeningSub').textContent = screeningMessages[i][1];
-      }, 2200);
+      document.getElementById('screeningText').textContent = `Screening resume ${current} of ${total}…`;
+      document.getElementById('screeningSub').textContent = 'Claude is reading the CV';
     }
     function stopScreeningAnim() {
-      clearInterval(msgInterval);
       document.getElementById('screeningOverlay').classList.remove('active');
     }
 
-    // ── Form submit ──
+    // ── Form submit — one resume at a time to avoid Railway timeout ──
     document.getElementById('screenForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       const btn = document.getElementById('submitBtn');
@@ -882,25 +869,54 @@
       const errorBanner = document.getElementById('errorBanner');
       errorBanner.style.display = 'none';
       document.getElementById('resultsSection').style.display = 'none';
+
+      const jobTitle = document.getElementById('job_title').value.trim();
+      const jobDesc = document.getElementById('job_description').value.trim();
+      if (!jobTitle || !jobDesc) { showError('Please fill in the Job Title and Job Description.'); return; }
+
+      const files = Array.from(document.getElementById('resumes').files);
+      if (!files.length) { showError('Please upload at least one resume.'); return; }
+
       btn.disabled = true;
       btnText.textContent = 'Screening…';
       spinner.style.display = 'inline-block';
-      startScreeningAnim();
-      const formData = new FormData(this);
-      try {
-        const res = await fetch('/screen', { method: 'POST', body: formData });
-        const data = await res.json();
-        if (!res.ok) { showError(data.error || 'An error occurred.'); return; }
-        screeningResults = data.results || [];
-        renderResults(screeningResults, data.errors || []);
-      } catch (err) {
-        showError('Network error: ' + err.message);
-      } finally {
-        btn.disabled = false;
-        btnText.textContent = 'Screen Resumes';
-        spinner.style.display = 'none';
-        stopScreeningAnim();
+
+      const allResults = [];
+      const allErrors = [];
+
+      for (let i = 0; i < files.length; i++) {
+        startScreeningAnim(i + 1, files.length);
+        const formData = new FormData();
+        formData.append('job_title', jobTitle);
+        formData.append('job_description', jobDesc);
+        formData.append('resumes', files[i]);
+        try {
+          const res = await fetch('/screen', { method: 'POST', body: formData });
+          const data = await res.json();
+          if (!res.ok) {
+            allErrors.push(`${files[i].name}: ${data.error || 'Server error'}`);
+          } else {
+            allResults.push(...(data.results || []));
+            allErrors.push(...(data.errors || []));
+          }
+        } catch (err) {
+          allErrors.push(`${files[i].name}: Network error — ${err.message}`);
+        }
       }
+
+      stopScreeningAnim();
+      btn.disabled = false;
+      btnText.textContent = 'Screen Resumes';
+      spinner.style.display = 'none';
+
+      if (!allResults.length && allErrors.length) {
+        showError(allErrors.join(' | '));
+        return;
+      }
+
+      allResults.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+      screeningResults = allResults;
+      renderResults(allResults, allErrors);
     });
 
     function showError(msg) {
