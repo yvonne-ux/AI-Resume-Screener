@@ -641,7 +641,10 @@
     <section id="resultsSection" style="display:none">
       <div class="results-header">
         <h2>Results <span id="resultCount" class="badge"></span></h2>
-        <button class="btn btn-secondary" onclick="exportToExcel()">⬇ Export to Excel</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-secondary" onclick="newScreening()">↺ New Screening</button>
+          <button class="btn btn-secondary" onclick="exportToExcel()">⬇ Export to Excel</button>
+        </div>
       </div>
 
       <div id="summaryBar" class="summary-bar">
@@ -918,6 +921,20 @@
       screeningResults = allResults;
       renderResults(allResults, allErrors);
     });
+
+    function newScreening() {
+      document.getElementById('job_title').value = '';
+      document.getElementById('job_description').value = '';
+      document.getElementById('jdFileName').textContent = '';
+      document.getElementById('jdFile').value = '';
+      document.getElementById('resumes').value = '';
+      document.getElementById('fileList').innerHTML = '';
+      document.getElementById('jdPanel').style.display = 'none';
+      document.getElementById('resultsSection').style.display = 'none';
+      document.getElementById('errorBanner').style.display = 'none';
+      screeningResults = [];
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
 
     function showError(msg) {
       const banner = document.getElementById('errorBanner');
