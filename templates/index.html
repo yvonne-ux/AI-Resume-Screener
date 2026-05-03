@@ -15,9 +15,9 @@
       --text: #1a1a1a;
       --text2: #555;
       --text3: #888;
-      --accent: #1D9E75;
-      --accent-light: #e1f5ee;
-      --accent-dark: #0f6e56;
+      --accent: #0071ba;
+      --accent-light: #e8f3fb;
+      --accent-dark: #005a94;
       --hire: #e1f5ee; --hire-text: #0f6e56;
       --maybe: #fff8e1; --maybe-text: #b45309;
       --pass: #fef2f2; --pass-text: #b91c1c;
@@ -32,9 +32,9 @@
       --text: #f0f0f0;
       --text2: #aaa;
       --text3: #666;
-      --accent: #1D9E75;
-      --accent-light: #0d3d2c;
-      --accent-dark: #5dcaa5;
+      --accent: #6798d0;
+      --accent-light: #0d1f3a;
+      --accent-dark: #6798d0;
       --hire: #0d3d2c; --hire-text: #5dcaa5;
       --maybe: #2d2000; --maybe-text: #fbbf24;
       --pass: #2d0000; --pass-text: #f87171;
@@ -540,10 +540,12 @@
 
   <div class="topbar">
     <div class="logo">
-      <div class="logo-dot"></div>
-      AI Resume Screener
+      <img src="/static/dhc-logo.png" alt="DHC" style="height:36px;object-fit:contain;" />
     </div>
     <div class="topbar-right">
+      <button class="theme-toggle" onclick="newScreening()" title="Start a new screening">
+        🔄 New Screening
+      </button>
       <button class="theme-toggle" onclick="toggleTheme()">
         <span id="themeIcon">🌙</span>
         <span id="themeLabel">Dark</span>
@@ -641,10 +643,7 @@
     <section id="resultsSection" style="display:none">
       <div class="results-header">
         <h2>Results <span id="resultCount" class="badge"></span></h2>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-secondary" onclick="newScreening()">↺ New Screening</button>
-          <button class="btn btn-secondary" onclick="exportToExcel()">⬇ Export to Excel</button>
-        </div>
+        <button class="btn btn-secondary" onclick="exportToExcel()">⬇ Export to Excel</button>
       </div>
 
       <div id="summaryBar" class="summary-bar">
