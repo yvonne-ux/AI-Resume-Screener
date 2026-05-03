@@ -722,8 +722,11 @@
         return;
       }
       row.innerHTML = lib.map((jd, i) => `
-        <span class="jd-chip" onclick="loadJD(${i})">${escHtml(jd.title)}</span>
-      `).join('') + `<span class="jd-chip" style="color:var(--pass-text);border-color:var(--pass-text);" onclick="clearJDLibrary()">Clear all</span>`;
+        <span class="jd-chip" style="display:inline-flex;align-items:center;gap:5px;">
+          <span onclick="loadJD(${i})" style="cursor:pointer;">${escHtml(jd.title)}</span>
+          <span onclick="deleteJD(${i})" style="cursor:pointer;font-size:11px;color:var(--text3);line-height:1;" title="Remove">✕</span>
+        </span>
+      `).join('');
     }
     function saveCurrentJD() {
       const title = document.getElementById('job_title').value.trim();
@@ -744,6 +747,12 @@
       if (!lib[i]) return;
       document.getElementById('job_title').value = lib[i].title;
       document.getElementById('job_description').value = lib[i].desc;
+    }
+    function deleteJD(i) {
+      const lib = getJDLibrary();
+      lib.splice(i, 1);
+      saveJDLibrary(lib);
+      renderJDLibrary();
     }
     function clearJDLibrary() {
       if (!confirm('Clear all saved JDs?')) return;
