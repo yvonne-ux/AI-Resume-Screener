@@ -99,6 +99,7 @@ Respond with ONLY a valid JSON object (no markdown, no code fences, no explanati
   "candidate_name": "Full name of the candidate, or 'Unknown'",
   "score": <integer 0-100>,
   "suitable": <true if this candidate genuinely meets the core requirements and is worth presenting to the client, false otherwise>,
+  "overqualified": <true if the candidate is significantly overqualified for this role (e.g. Director-level applying for an executive role), false otherwise>,
   "strengths": ["Specific strength tied to a JD requirement", "Strength 2", "Strength 3"],
   "gaps": ["Key gap or concern 1", "Gap 2"],
   "key_skills_found": ["skill1", "skill2", "skill3"],
@@ -109,13 +110,14 @@ Respond with ONLY a valid JSON object (no markdown, no code fences, no explanati
 Instructions:
 - strengths: 2-4 specific reasons this person meets the JD requirements, referencing actual CV details
 - gaps: 1-3 notable gaps; use an empty array if there are none
-- email_bullets: 3-4 compelling, specific points drawn from the CV that directly address this JD
+- email_bullets: 3-4 factual, specific talking points about this candidate relevant to the JD — write these as neutral highlights a recruiter can use when discussing the candidate with a client, regardless of whether they are being put forward or not
+- overqualified: flag true if current seniority level is clearly above what the role requires
 
 Scoring guide: 90-100 exceptional, 70-89 strong, 50-69 partial, 30-49 weak, 0-29 poor."""
 
     message = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=600,
+        max_tokens=1024,
         messages=[{"role": "user", "content": prompt}],
     )
 
