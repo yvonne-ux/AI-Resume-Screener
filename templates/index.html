@@ -411,8 +411,8 @@
       font-size: 12px; color: var(--text3);
       cursor: pointer; transition: all 0.15s;
     }
-    .shortlist-btn:hover { border-color: var(--accent); color: var(--accent); }
-    .shortlist-btn.active { background: var(--accent-light); color: var(--accent-dark); border-color: var(--accent); }
+    .shortlist-btn:hover { border-color: #f59e0b; color: #f59e0b; }
+    .shortlist-btn.active { background: #fef3c7; color: #b45309; border-color: #f59e0b; font-weight: 600; }
 
     .expand-btn {
       background: transparent; border: 1px solid var(--border);
@@ -1113,18 +1113,25 @@
     function updateShortlistUI() {
       const count = shortlistedIndexes.size;
       document.getElementById('statShortlisted').textContent = count;
-      document.getElementById('shortlistCount').textContent = count;
+      const countSpan = document.getElementById('shortlistCount');
+      if (countSpan) countSpan.textContent = count;
       const filterBtn = document.getElementById('filterShortlistBtn');
       const exportBtn = document.getElementById('exportShortlistBtn');
       if (count > 0) {
         filterBtn.style.display = 'inline-flex';
         exportBtn.style.display = 'inline-flex';
-        document.getElementById('statShortlistCard').style.border = '1.5px solid var(--accent)';
+        document.getElementById('statShortlistCard').style.border = '1.5px solid #f59e0b';
+        document.getElementById('statShortlisted').style.color = '#b45309';
       } else {
         filterBtn.style.display = 'none';
         exportBtn.style.display = 'none';
         document.getElementById('statShortlistCard').style.border = '';
-        if (showingShortlistOnly) toggleShortlistFilter();
+        document.getElementById('statShortlisted').style.color = 'var(--accent)';
+        if (showingShortlistOnly) {
+          showingShortlistOnly = false;
+          applyShortlistFilter();
+          filterBtn.innerHTML = `★ Show shortlisted (<span id="shortlistCount">0</span>)`;
+        }
       }
       if (showingShortlistOnly) applyShortlistFilter();
     }
@@ -1140,15 +1147,14 @@
     }
 
     function applyShortlistFilter() {
-      screeningResults.forEach((r, i) => {
-        const mainRow = document.querySelector(`#resultsBody .main-row:nth-child(${i * 2 + 1})`);
-        const detailRow = document.getElementById(`detail-${i}`);
-        if (!mainRow) return;
-        if (showingShortlistOnly && !shortlistedIndexes.has(i)) {
-          mainRow.style.display = 'none';
+      const allMainRows = document.querySelectorAll('#resultsBody .main-row');
+      allMainRows.forEach((row, idx) => {
+        const detailRow = document.getElementById(`detail-${idx}`);
+        if (showingShortlistOnly && !shortlistedIndexes.has(idx)) {
+          row.style.display = 'none';
           if (detailRow) detailRow.style.display = 'none';
         } else {
-          mainRow.style.display = '';
+          row.style.display = '';
         }
       });
     }
@@ -1188,7 +1194,7 @@
 
     // ── Excel export (shortlisted only) ──
     async function exportShortlisted() {
-      if (!shortlistedIndexes.size) return;
+      if (!shortlistedIndexes.size) { alert('No candidates shortlisted yet.'); return; }
       const shortlisted = screeningResults.filter((r, i) => shortlistedIndexes.has(i));
       const res = await fetch('/export', {
         method: 'POST',
