@@ -645,7 +645,11 @@
     <section id="resultsSection" style="display:none">
       <div class="results-header">
         <h2>Results <span id="resultCount" class="badge"></span></h2>
-        <button class="btn btn-secondary" onclick="exportToExcel()">⬇ Export to Excel</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-secondary" id="filterShortlistBtn" onclick="toggleShortlistFilter()" style="display:none;">★ Show shortlisted (<span id="shortlistCount">0</span>)</button>
+          <button class="btn btn-secondary" onclick="exportToExcel()">⬇ Export all</button>
+          <button class="btn btn-secondary" id="exportShortlistBtn" onclick="exportShortlisted()" style="display:none;">⬇ Export shortlisted</button>
+        </div>
       </div>
 
       <div id="summaryBar" class="summary-bar">
@@ -661,9 +665,9 @@
           <span class="summary-value" id="statAvg">—</span>
           <span class="summary-label">Avg Score</span>
         </div>
-        <div class="summary-card">
-          <span class="summary-value summary-value--name" id="statTop">—</span>
-          <span class="summary-label">Top Candidate</span>
+        <div class="summary-card" id="statShortlistCard" style="cursor:pointer;" onclick="toggleShortlistFilter()">
+          <span class="summary-value" id="statShortlisted" style="color:var(--accent);">0</span>
+          <span class="summary-label">★ Shortlisted</span>
         </div>
       </div>
 
@@ -943,6 +947,8 @@
       document.getElementById('resultsSection').style.display = 'none';
       document.getElementById('errorBanner').style.display = 'none';
       screeningResults = [];
+      shortlistedIndexes = new Set();
+      showingShortlistOnly = false;
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -981,7 +987,7 @@
       document.getElementById('statTotal').textContent = total;
       document.getElementById('statSuitable').textContent = suitableCount;
       document.getElementById('statAvg').textContent = total > 0 ? avgScore + '%' : '—';
-      document.getElementById('statTop').textContent = topCandidate;
+      document.getElementById('statShortlisted').textContent = shortlistedIndexes.size;
 
       const warningBox = document.getElementById('warningBox');
       if (errors.length > 0) {
@@ -1087,9 +1093,64 @@
       return reqs.slice(0, 6);
     }
 
+    // ── Shortlist state ──
+    let shortlistedIndexes = new Set();
+    let showingShortlistOnly = false;
+
     function toggleShortlist(i, btn) {
-      btn.classList.toggle('active');
-      btn.textContent = btn.classList.contains('active') ? '★ Shortlisted' : '☆ Shortlist';
+      if (shortlistedIndexes.has(i)) {
+        shortlistedIndexes.delete(i);
+        btn.classList.remove('active');
+        btn.textContent = '☆ Shortlist';
+      } else {
+        shortlistedIndexes.add(i);
+        btn.classList.add('active');
+        btn.textContent = '★ Shortlisted';
+      }
+      updateShortlistUI();
+    }
+
+    function updateShortlistUI() {
+      const count = shortlistedIndexes.size;
+      document.getElementById('statShortlisted').textContent = count;
+      document.getElementById('shortlistCount').textContent = count;
+      const filterBtn = document.getElementById('filterShortlistBtn');
+      const exportBtn = document.getElementById('exportShortlistBtn');
+      if (count > 0) {
+        filterBtn.style.display = 'inline-flex';
+        exportBtn.style.display = 'inline-flex';
+        document.getElementById('statShortlistCard').style.border = '1.5px solid var(--accent)';
+      } else {
+        filterBtn.style.display = 'none';
+        exportBtn.style.display = 'none';
+        document.getElementById('statShortlistCard').style.border = '';
+        if (showingShortlistOnly) toggleShortlistFilter();
+      }
+      if (showingShortlistOnly) applyShortlistFilter();
+    }
+
+    function toggleShortlistFilter() {
+      if (shortlistedIndexes.size === 0) return;
+      showingShortlistOnly = !showingShortlistOnly;
+      applyShortlistFilter();
+      const filterBtn = document.getElementById('filterShortlistBtn');
+      filterBtn.innerHTML = showingShortlistOnly
+        ? `☆ Show all candidates`
+        : `★ Show shortlisted (<span id="shortlistCount">${shortlistedIndexes.size}</span>)`;
+    }
+
+    function applyShortlistFilter() {
+      screeningResults.forEach((r, i) => {
+        const mainRow = document.querySelector(`#resultsBody .main-row:nth-child(${i * 2 + 1})`);
+        const detailRow = document.getElementById(`detail-${i}`);
+        if (!mainRow) return;
+        if (showingShortlistOnly && !shortlistedIndexes.has(i)) {
+          mainRow.style.display = 'none';
+          if (detailRow) detailRow.style.display = 'none';
+        } else {
+          mainRow.style.display = '';
+        }
+      });
     }
 
     function toggleDetail(i, btn) {
@@ -1125,7 +1186,24 @@
       setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('copy-btn--done'); }, 2000);
     }
 
-    // ── Excel export ──
+    // ── Excel export (shortlisted only) ──
+    async function exportShortlisted() {
+      if (!shortlistedIndexes.size) return;
+      const shortlisted = screeningResults.filter((r, i) => shortlistedIndexes.has(i));
+      const res = await fetch('/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ results: shortlisted }),
+      });
+      if (!res.ok) { alert('Export failed.'); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'shortlisted_candidates.xlsx'; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // ── Excel export (all) ──
     async function exportToExcel() {
       if (!screeningResults.length) return;
       const res = await fetch('/export', {
