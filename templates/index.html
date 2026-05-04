@@ -953,7 +953,8 @@
     }
 
     // ── Render results ──
-    function getVerdict(score) {
+    function getVerdict(score, overqualified) {
+      if (overqualified) return { label: 'Overqualified', cls: 'verdict-maybe' };
       if (score >= 75) return { label: 'Hire', cls: 'verdict-hire' };
       if (score >= 50) return { label: 'Maybe', cls: 'verdict-maybe' };
       return { label: 'Pass', cls: 'verdict-pass' };
@@ -995,16 +996,15 @@
 
       results.forEach((r, i) => {
         const score = r.score ?? 0;
-        const verdict = getVerdict(score);
+        const verdict = getVerdict(score, r.overqualified);
         const fillCls = getScoreFillClass(score);
         const skills = (r.key_skills_found || []).map(s => `<span class="skill-tag">${escHtml(s)}</span>`).join('');
-        const overqualifiedBadge = r.overqualified ? `<span style="display:inline-block;margin-left:6px;font-size:11px;padding:2px 7px;border-radius:20px;background:#fff3cd;color:#856404;border:1px solid #ffc107;">⚠️ Overqualified</span>` : '';
 
         const tr = document.createElement('tr');
         tr.className = 'main-row';
         tr.innerHTML = `
           <td class="rank">${i + 1}</td>
-          <td class="candidate-name">${escHtml(r.candidate_name || 'Unknown')}${overqualifiedBadge}</td>
+          <td class="candidate-name">${escHtml(r.candidate_name || 'Unknown')}</td>
           <td>
             <div class="score-wrap">
               <div class="score-bar"><div class="score-fill ${fillCls}" style="width:${score}%"></div></div>
@@ -1030,12 +1030,24 @@
           </tr>`
         ).join('');
 
-        // Key takeaways (top 3 from email_bullets)
+        // Key takeaways (top 3 from email_bullets or strengths)
         const takeaways = (r.email_bullets || r.strengths || []).slice(0, 3);
         const takeawaysHTML = takeaways.map(t => `<li>${escHtml(t)}</li>`).join('');
 
-        const emailText = buildEmailDraft(r, jobTitle);
+        const isPass = verdict.label === 'Pass';
         const emailId = `emailDraft-${i}`;
+        const emailSection = isPass ? `
+          <div>
+            <div class="detail-heading">Internal note</div>
+            <div style="font-size:13px;color:var(--text2);padding:12px;background:var(--pass);border-radius:var(--radius-sm);line-height:1.6;">
+              ❌ Not suitable for this role. Review the gaps above before deciding next steps. No client email needed.
+            </div>
+          </div>` : `
+          <div>
+            <div class="detail-heading">Email to client</div>
+            <div class="email-draft" id="${emailId}">${escHtml(buildEmailDraft(r, jobTitle))}</div>
+            <button class="copy-btn" onclick="copyEmail('${emailId}', this)">📋 Copy email</button>
+          </div>`;
 
         const detailTr = document.createElement('tr');
         detailTr.className = 'detail-row';
@@ -1052,11 +1064,7 @@
                 <div class="detail-heading detail-heading--green">Key takeaways</div>
                 <ul class="takeaways">${takeawaysHTML}</ul>
               </div>
-              <div>
-                <div class="detail-heading">Email to client</div>
-                <div class="email-draft" id="${emailId}">${escHtml(emailText)}</div>
-                <button class="copy-btn" onclick="copyEmail('${emailId}', this)">📋 Copy email</button>
-              </div>
+              ${emailSection}
             </div>
           </td>`;
         body.appendChild(detailTr);
@@ -1068,6 +1076,11 @@
 
     // Derive requirements from strengths/gaps for the tick table
     function deriveRequirements(r) {
+      if (r.requirements_assessment && r.requirements_assessment.length) {
+        return r.requirements_assessment.map(req => ({
+          label: req.requirement, met: req.met, evidence: req.evidence || ''
+        }));
+      }
       const reqs = [];
       (r.strengths || []).forEach(s => reqs.push({ label: s, met: true }));
       (r.gaps || []).forEach(g => reqs.push({ label: g, met: false }));
@@ -1091,12 +1104,8 @@
     function buildEmailDraft(r, jobTitle) {
       const name = r.candidate_name && r.candidate_name !== 'Unknown' ? r.candidate_name : 'the candidate';
       const bullets = (r.email_bullets || []).map(b => `• ${b}`).join('\n');
-      const overqualifiedNote = r.overqualified ? `\nNote: Candidate's current seniority level may be above the scope of this role — worth discussing fit with the hiring manager.\n` : '';
-      if (r.suitable) {
-        return `Subject: CV Submission – ${name} | ${jobTitle}\n\nDear [Client Name],\n\nI am pleased to present ${name} for the ${jobTitle} position. Based on my review, I believe they would be a strong fit for your team.\n\nKey highlights:\n${bullets}\n${overqualifiedNote}\nPlease find their CV attached. Happy to arrange an intro call at your convenience.\n\nBest regards,\n[Your Name]`;
-      } else {
-        return `Subject: Candidate Profile – ${name} | ${jobTitle}\n\nDear [Client Name],\n\nThank you for the opportunity to work on the ${jobTitle} search. I have reviewed ${name}'s profile and wanted to share some notes for your consideration.\n\nCandidate profile summary:\n${bullets}\n${overqualifiedNote}\nPlease let me know your thoughts and whether you would like me to arrange a time to discuss further.\n\nBest regards,\n[Your Name]`;
-      }
+      const overqualNote = r.overqualified ? "\n\nNote: Candidate's current seniority appears above this role — recommend clarifying expectations before presenting." : '';
+      return `Subject: CV for Review – ${name} | ${jobTitle}\n\nDear [Client Name],\n\nPlease find attached the profile of ${name} for your consideration for the ${jobTitle} position.\n\nKey highlights:\n${bullets}${overqualNote}\n\nPlease review and let me know if you would like to arrange an interview or require any further information.\n\nBest regards,\n[Your Name]`;
     }
 
     async function copyEmail(id, btn) {
