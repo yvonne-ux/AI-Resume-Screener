@@ -128,7 +128,7 @@ Scoring guide: 90-100 exceptional, 70-89 strong, 50-69 partial match (still wort
 
     message = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=1000,
+        max_tokens=1800,
         messages=[{"role": "user", "content": prompt}],
     )
 
