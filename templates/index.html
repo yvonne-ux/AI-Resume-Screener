@@ -524,6 +524,63 @@
 
     /* Actions row */
     .actions-cell { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+    /* ── Detail tabs ── */
+    .detail-tabs {
+      display: flex; gap: 4px;
+      padding: 12px 16px 0;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+    .dtab {
+      font-size: 13px; font-weight: 500;
+      padding: 8px 16px;
+      border: none; border-bottom: 2px solid transparent;
+      background: transparent;
+      color: var(--text3);
+      cursor: pointer;
+      transition: all 0.15s;
+      border-radius: 6px 6px 0 0;
+    }
+    .dtab:hover { color: var(--text); }
+    .dtab-active { color: var(--accent); border-bottom-color: var(--accent); background: var(--surface); }
+
+    .tab-pane { background: var(--surface2); }
+
+    /* ── Interview panel ── */
+    .interview-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      padding: 20px 24px;
+    }
+    @media (max-width: 700px) { .interview-panel { grid-template-columns: 1fr; } }
+
+    .iq-loading {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; color: var(--text3);
+      padding: 12px 0;
+    }
+    .iq-item {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .iq-item:last-child { border-bottom: none; }
+    .iq-label {
+      font-size: 11px; font-weight: 600;
+      color: var(--accent-dark);
+      text-transform: uppercase; letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+    .iq-q {
+      font-size: 13px; color: var(--text);
+      line-height: 1.6;
+    }
+    .iq-why {
+      font-size: 12px; color: var(--text3);
+      margin-top: 4px; line-height: 1.5;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -1027,11 +1084,11 @@
           </td>`;
         body.appendChild(tr);
 
-        // Requirements table from must_have analysis (derived from strengths/gaps)
+        // Requirements table from requirements_assessment if available, else derive from strengths/gaps
         const requirements = deriveRequirements(r);
         const reqRowsHTML = requirements.map(req =>
           `<tr>
-            <td class="req-name">${escHtml(req.label)}</td>
+            <td class="req-name" title="${escHtml(req.evidence || '')}">${escHtml(req.label)}</td>
             <td class="req-check">${req.met ? '<span class="tick">✓</span>' : '<span class="cross">✗</span>'}</td>
           </tr>`
         ).join('');
@@ -1042,18 +1099,19 @@
 
         const isPass = verdict.label === 'Pass';
         const emailId = `emailDraft-${i}`;
-        const emailSection = isPass ? `
-          <div>
-            <div class="detail-heading">Internal note</div>
-            <div style="font-size:13px;color:var(--text2);padding:12px;background:var(--pass);border-radius:var(--radius-sm);line-height:1.6;">
-              ❌ Not suitable for this role. Review the gaps above before deciding next steps. No client email needed.
-            </div>
-          </div>` : `
-          <div>
-            <div class="detail-heading">Email to client</div>
-            <div class="email-draft" id="${emailId}">${escHtml(buildEmailDraft(r, jobTitle))}</div>
-            <button class="copy-btn" onclick="copyEmail('${emailId}', this)">📋 Copy email</button>
-          </div>`;
+
+        // Standard interview questions (always shown)
+        const standardQs = [
+          { label: '💼 Reason for leaving', q: 'What is your reason for leaving your current / most recent role?' },
+          { label: '💰 Current salary', q: 'What is your current basic salary? Do you receive AWS, performance bonus, or any allowances (e.g. handphone, transport)? Please share the full package.' },
+          { label: '⏱ Notice period', q: 'What is your current notice period? Are you able to shorten it if required?' },
+          { label: '🎯 Expected salary', q: 'What is your expected salary for this role? Is this negotiable?' },
+        ];
+        const standardQsHTML = standardQs.map(q => `
+          <div class="iq-item">
+            <div class="iq-label">${q.label}</div>
+            <div class="iq-q">${escHtml(q.q)}</div>
+          </div>`).join('');
 
         const detailTr = document.createElement('tr');
         detailTr.className = 'detail-row';
@@ -1061,17 +1119,57 @@
         detailTr.style.display = 'none';
         detailTr.innerHTML = `
           <td colspan="6">
-            <div class="detail-panel">
-              <div>
-                <div class="detail-heading">Requirements</div>
-                <table class="req-table"><tbody>${reqRowsHTML}</tbody></table>
-              </div>
-              <div>
-                <div class="detail-heading detail-heading--green">Key takeaways</div>
-                <ul class="takeaways">${takeawaysHTML}</ul>
-              </div>
-              ${emailSection}
+            <div class="detail-tabs">
+              <button class="dtab dtab-active" onclick="switchTab(${i}, 'overview', this)">📊 Overview</button>
+              <button class="dtab" onclick="switchTab(${i}, 'interview', this)">📞 Interview prep</button>
+              ${!isPass ? `<button class="dtab" onclick="switchTab(${i}, 'email', this)">✉️ Email</button>` : ''}
             </div>
+
+            <div id="tab-overview-${i}" class="tab-pane">
+              <div class="detail-panel">
+                <div>
+                  <div class="detail-heading">Requirements</div>
+                  <table class="req-table"><tbody>${reqRowsHTML}</tbody></table>
+                </div>
+                <div>
+                  <div class="detail-heading detail-heading--green">Key takeaways</div>
+                  <ul class="takeaways">${takeawaysHTML}</ul>
+                </div>
+                ${isPass ? `
+                <div>
+                  <div class="detail-heading">Internal note</div>
+                  <div style="font-size:13px;color:var(--text3);padding:12px;background:var(--pass);border-radius:var(--radius-sm);line-height:1.6;">
+                    ❌ Not suitable for this role. Review the gaps above before deciding next steps. No client email needed.
+                  </div>
+                </div>` : ''}
+              </div>
+            </div>
+
+            <div id="tab-interview-${i}" class="tab-pane" style="display:none;">
+              <div class="interview-panel">
+                <div>
+                  <div class="detail-heading" style="margin-bottom:12px;">🎯 Role-specific questions</div>
+                  <div class="iq-loading" id="iq-loading-${i}">
+                    <span class="spinner spinner--dark" style="width:14px;height:14px;"></span>
+                    Generating questions based on JD and candidate profile…
+                  </div>
+                  <div id="iq-questions-${i}"></div>
+                </div>
+                <div>
+                  <div class="detail-heading" style="margin-bottom:12px;">📋 Standard questions</div>
+                  ${standardQsHTML}
+                </div>
+              </div>
+            </div>
+
+            ${!isPass ? `
+            <div id="tab-email-${i}" class="tab-pane" style="display:none;">
+              <div style="padding:16px 20px;">
+                <div class="detail-heading" style="margin-bottom:10px;">Email to client</div>
+                <div class="email-draft" id="${emailId}">${escHtml(buildEmailDraft(r, jobTitle))}</div>
+                <button class="copy-btn" onclick="copyEmail('${emailId}', this)">📋 Copy email</button>
+              </div>
+            </div>` : ''}
           </td>`;
         body.appendChild(detailTr);
       });
@@ -1165,6 +1263,61 @@
       row.style.display = isHidden ? 'table-row' : 'none';
       btn.innerHTML = isHidden ? 'Details ▴' : 'Details ▾';
       btn.classList.toggle('expand-btn--open', isHidden);
+    }
+
+    // ── Tab switching ──
+    function switchTab(i, tab, btn) {
+      ['overview', 'interview', 'email'].forEach(t => {
+        const pane = document.getElementById(`tab-${t}-${i}`);
+        if (pane) pane.style.display = 'none';
+      });
+      document.querySelectorAll(`#detail-${i} .dtab`).forEach(b => b.classList.remove('dtab-active'));
+      const pane = document.getElementById(`tab-${tab}-${i}`);
+      if (pane) pane.style.display = 'block';
+      btn.classList.add('dtab-active');
+
+      if (tab === 'interview') {
+        const qContainer = document.getElementById(`iq-questions-${i}`);
+        const loading = document.getElementById(`iq-loading-${i}`);
+        if (qContainer && !qContainer.dataset.loaded) {
+          generateInterviewQuestions(i, qContainer, loading);
+        }
+      }
+    }
+
+    // ── Generate role-specific interview questions via Claude ──
+    async function generateInterviewQuestions(i, container, loading) {
+      const r = screeningResults[i];
+      const jobTitle = document.getElementById('job_title').value.trim();
+      const jobDesc = document.getElementById('job_description').value.trim();
+      try {
+        const res = await fetch('/interview-questions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            job_title: jobTitle,
+            job_description: jobDesc,
+            candidate_name: r.candidate_name,
+            strengths: r.strengths || [],
+            gaps: r.gaps || [],
+            key_skills: r.key_skills_found || []
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed');
+        loading.style.display = 'none';
+        const qs = data.questions || [];
+        container.innerHTML = qs.map(q => `
+          <div class="iq-item">
+            <div class="iq-label">${escHtml(q.category || 'Technical')}</div>
+            <div class="iq-q">${escHtml(q.question)}</div>
+            ${q.why ? `<div class="iq-why">💡 ${escHtml(q.why)}</div>` : ''}
+          </div>`).join('');
+        container.dataset.loaded = '1';
+      } catch (err) {
+        loading.style.display = 'none';
+        container.innerHTML = `<div style="font-size:13px;color:var(--text3);padding:8px;">Could not generate questions. Please try again.</div>`;
+      }
     }
 
     // ── Email draft ──
