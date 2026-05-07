@@ -1121,7 +1121,7 @@
           <td colspan="6">
             <div class="detail-tabs">
               <button class="dtab dtab-active" onclick="switchTab(${i}, 'overview', this)">📊 Overview</button>
-              <button class="dtab" onclick="switchTab(${i}, 'interview', this)">📞 Interview prep</button>
+              ${!isPass ? `<button class="dtab" onclick="switchTab(${i}, 'interview', this)">📞 Interview prep</button>` : ''}
               ${!isPass ? `<button class="dtab" onclick="switchTab(${i}, 'email', this)">✉️ Email</button>` : ''}
             </div>
 
