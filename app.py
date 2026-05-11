@@ -310,7 +310,7 @@ def export():
     ws = wb.active
     ws.title = "Screening Results"
 
-    headers = ["Rank", "Candidate Name", "Score", "Verdict", "Suitable", "Key Skills", "Strengths", "Gaps", "Email Bullets"]
+    headers = ["Rank", "Candidate Name", "Score", "Suitable", "Key Skills", "Strengths", "Gaps", "Email Bullets"]
     ws.append(headers)
 
     header_font = openpyxl.styles.Font(bold=True, color="FFFFFF")
@@ -323,21 +323,15 @@ def export():
         cell.fill = header_fill
         cell.alignment = header_alignment
 
-    def get_verdict(score):
-        if score >= 75: return "Hire"
-        if score >= 50: return "Maybe"
-        return "Pass"
-
     for rank, r in enumerate(results, 1):
         score = r.get("score", 0)
-        verdict = get_verdict(score)
         suitable = "Yes" if r.get("suitable") else "No"
         skills = ", ".join(r.get("key_skills_found", []))
         strengths = "\n".join(f"• {s}" for s in r.get("strengths", []))
         gaps = "\n".join(f"• {g}" for g in r.get("gaps", []))
         email_bullets = "\n".join(f"• {b}" for b in r.get("email_bullets", []))
 
-        row = [rank, r.get("candidate_name", "Unknown"), score, verdict, suitable, skills, strengths, gaps, email_bullets]
+        row = [rank, r.get("candidate_name", "Unknown"), score, suitable, skills, strengths, gaps, email_bullets]
         ws.append(row)
 
         score_cell = ws.cell(row=rank + 1, column=3)
@@ -352,21 +346,10 @@ def export():
         else:
             score_cell.fill = openpyxl.styles.PatternFill(fill_type="solid", fgColor="FEE2E2")
 
-        verdict_cell = ws.cell(row=rank + 1, column=4)
-        if verdict == "Hire":
-            verdict_cell.fill = openpyxl.styles.PatternFill(fill_type="solid", fgColor="DCFCE7")
-            verdict_cell.font = openpyxl.styles.Font(bold=True, color="15803D")
-        elif verdict == "Maybe":
-            verdict_cell.fill = openpyxl.styles.PatternFill(fill_type="solid", fgColor="FEF9C3")
-            verdict_cell.font = openpyxl.styles.Font(bold=True, color="92400E")
-        else:
-            verdict_cell.fill = openpyxl.styles.PatternFill(fill_type="solid", fgColor="FEE2E2")
-            verdict_cell.font = openpyxl.styles.Font(bold=True, color="B91C1C")
-
-        for col in [7, 8, 9]:
+        for col in [6, 7, 8]:
             ws.cell(row=rank + 1, column=col).alignment = openpyxl.styles.Alignment(wrap_text=True, vertical="top")
 
-    col_widths = [6, 22, 8, 10, 10, 32, 40, 32, 50]
+    col_widths = [6, 22, 8, 10, 32, 40, 32, 50]
     for i, width in enumerate(col_widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = width
 

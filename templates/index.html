@@ -395,15 +395,6 @@
     .fill-weak { background: #f87171; }
     .fill-low { background: #e24b4a; }
 
-    /* Verdict badge */
-    .verdict {
-      display: inline-block; font-size: 12px; font-weight: 600;
-      padding: 4px 10px; border-radius: 20px; white-space: nowrap;
-    }
-    .verdict-hire { background: var(--hire); color: var(--hire-text); }
-    .verdict-maybe { background: var(--maybe); color: var(--maybe-text); }
-    .verdict-pass { background: var(--pass); color: var(--pass-text); }
-
     /* Shortlist */
     .shortlist-btn {
       background: transparent; border: 1px solid var(--border);
@@ -737,7 +728,6 @@
               <th>#</th>
               <th>Candidate</th>
               <th>Score</th>
-              <th>Verdict</th>
               <th>Skills</th>
               <th></th>
             </tr>
@@ -1074,7 +1064,6 @@
               <span class="score-num">${score}%</span>
             </div>
           </td>
-          <td><span class="verdict ${verdict.cls}">${verdict.label}</span></td>
           <td>${skills}</td>
           <td>
             <div class="actions-cell">
