@@ -93,52 +93,25 @@ def extract_text_from_pdf(file_bytes):
 
 
 def extract_text_from_docx(file_bytes):
-    """Extract text from DOCX including paragraphs, tables, and text boxes."""
+    """Extract text from DOCX including paragraphs and tables."""
     doc = Document(io.BytesIO(file_bytes))
     parts = []
 
-    # Walk body elements in document order so paragraphs and tables are interleaved
-    for block in doc.element.body:
-        tag = block.tag.split('}')[-1] if '}' in block.tag else block.tag
+    # Paragraphs (header, body, footer runs)
+    for para in doc.paragraphs:
+        if para.text.strip():
+            parts.append(para.text.strip())
 
-        if tag == 'p':
-            # Regular paragraph (includes runs inside hyperlinks etc.)
-            text = ''.join(
-                node.text for node in block.iter()
-                if node.tag.endswith('}t') and node.text
-            )
-            if text.strip():
-                parts.append(text.strip())
-
-        elif tag == 'tbl':
-            # Table — read each row, joining cells with ' | '
-            seen = set()          # avoid duplicating text from merged/repeated cells
-            for tr in block.iter():
-                if not tr.tag.endswith('}tr'):
-                    continue
-                row_cells = []
-                for tc in tr:
-                    if not tc.tag.endswith('}tc'):
-                        continue
-                    cell_text = ''.join(
-                        node.text for node in tc.iter()
-                        if node.tag.endswith('}t') and node.text
-                    ).strip()
-                    if cell_text and cell_text not in seen:
-                        row_cells.append(cell_text)
-                        seen.add(cell_text)
-                if row_cells:
-                    parts.append(' | '.join(row_cells))
-
-    # Text boxes (drawing canvases) — extract any remaining text not already captured
-    for txbx in doc.element.body.iter():
-        if txbx.tag.endswith('}txbxContent'):
-            text = ''.join(
-                node.text for node in txbx.iter()
-                if node.tag.endswith('}t') and node.text
-            ).strip()
-            if text:
-                parts.append(text)
+    # Tables — many Singapore resume templates use tables for layout
+    for table in doc.tables:
+        for row in table.rows:
+            seen_cells = []
+            for cell in row.cells:
+                txt = cell.text.strip()
+                if txt and txt not in seen_cells:   # merged cells repeat text
+                    seen_cells.append(txt)
+            if seen_cells:
+                parts.append(' | '.join(seen_cells))
 
     return clean_text('\n'.join(parts))
 
@@ -383,12 +356,6 @@ def too_large(e):
 @app.errorhandler(500)
 def server_error(e):
     return jsonify({"error": "Internal server error.", "results": [], "errors": [str(e)]}), 500
-
-@app.errorhandler(Exception)
-def unhandled_exception(e):
-    import traceback
-    print(traceback.format_exc())
-    return jsonify({"error": str(e), "results": [], "errors": [str(e)]}), 500
 
 
 @app.route("/debug-env")
