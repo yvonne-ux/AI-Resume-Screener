@@ -110,9 +110,11 @@ IMPORTANT EVALUATION RULES:
    - Big 4 consulting (Deloitte, KPMG, PwC, EY, Accenture) = structured methodology and stakeholder management
    - Healthcare-adjacent bodies (HPB, AIC, NCSS, VWOs) count as healthcare experience
    - Banking/finance ops experience transfers well to healthcare admin and HR shared services roles
-   - Hospitality & attractions (hotels, theme parks like Resorts World Sentosa, Universal Studios, airlines, cruise lines) = strong customer service, high-volume people management, safety protocols, emergency response — directly transferable to Patient Service Associate, clinic receptionist, and customer-facing healthcare roles
+   - PSA (Patient Service Associate) roles DO NOT require prior hospital or healthcare experience — any strong customer service, counter service, admin, operations, or logistics background is sufficient and should be scored positively
+   - Hospitality & attractions (hotels, theme parks like Resorts World Sentosa, Universal Studios, airlines, cruise lines) = strong customer service, high-volume people management, safety protocols, emergency response — directly transferable to PSA roles
    - Retail and F&B experience = customer service, cash handling, complaint resolution — transferable to PSA, clinic admin, and front-desk healthcare roles
    - Call centre / BPO experience = high-volume customer interaction, scripted communication, escalation handling — transferable to PSA and patient-facing roles
+   - Operations, logistics, admin, and counter service from ANY industry (government, community, sports, retail, transport) = valid and strong background for PSA roles
 
 3. SINGAPORE ACRONYMS & ORGANISATIONS — Recognise these as strong signals, not unknown text:
    MOH=Ministry of Health, NHG=National Healthcare Group, SingHealth=Singapore Health Services, NUH=National University Hospital, TTSH=Tan Tock Seng Hospital, SGH=Singapore General Hospital, KTPH=Khoo Teck Puat Hospital, HPB=Health Promotion Board, AIC=Agency for Integrated Care, VITAL=Government HR shared services, NCSS=National Council of Social Service, VWO=Voluntary Welfare Organisation, IHRP=HR professional certification (Singapore), BOI=Board of Inquiry (HR/IR), NGEMR=Electronic Medical Records system, SOC=Specialist Outpatient Clinic, GCP=Good Clinical Practice, IRB=Institutional Review Board, EDC=Electronic Data Capture
