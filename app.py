@@ -93,9 +93,54 @@ def extract_text_from_pdf(file_bytes):
 
 
 def extract_text_from_docx(file_bytes):
+    """Extract text from DOCX including paragraphs, tables, and text boxes."""
     doc = Document(io.BytesIO(file_bytes))
-    paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
-    return clean_text("\n".join(paragraphs))
+    parts = []
+
+    # Walk body elements in document order so paragraphs and tables are interleaved
+    for block in doc.element.body:
+        tag = block.tag.split('}')[-1] if '}' in block.tag else block.tag
+
+        if tag == 'p':
+            # Regular paragraph (includes runs inside hyperlinks etc.)
+            text = ''.join(
+                node.text for node in block.iter()
+                if node.tag.endswith('}t') and node.text
+            )
+            if text.strip():
+                parts.append(text.strip())
+
+        elif tag == 'tbl':
+            # Table — read each row, joining cells with ' | '
+            seen = set()          # avoid duplicating text from merged/repeated cells
+            for tr in block.iter():
+                if not tr.tag.endswith('}tr'):
+                    continue
+                row_cells = []
+                for tc in tr:
+                    if not tc.tag.endswith('}tc'):
+                        continue
+                    cell_text = ''.join(
+                        node.text for node in tc.iter()
+                        if node.tag.endswith('}t') and node.text
+                    ).strip()
+                    if cell_text and cell_text not in seen:
+                        row_cells.append(cell_text)
+                        seen.add(cell_text)
+                if row_cells:
+                    parts.append(' | '.join(row_cells))
+
+    # Text boxes (drawing canvases) — extract any remaining text not already captured
+    for txbx in doc.element.body.iter():
+        if txbx.tag.endswith('}txbxContent'):
+            text = ''.join(
+                node.text for node in txbx.iter()
+                if node.tag.endswith('}t') and node.text
+            ).strip()
+            if text:
+                parts.append(text)
+
+    return clean_text('\n'.join(parts))
 
 
 def extract_text(file_bytes, filename):
@@ -324,6 +369,26 @@ Respond with ONLY a valid JSON object (no markdown, no explanation):
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+# ── Global error handlers — always return JSON so the browser never sees HTML ──
+@app.errorhandler(400)
+def bad_request(e):
+    return jsonify({"error": str(e), "results": [], "errors": [str(e)]}), 400
+
+@app.errorhandler(413)
+def too_large(e):
+    return jsonify({"error": "File too large.", "results": [], "errors": ["File too large."]}), 413
+
+@app.errorhandler(500)
+def server_error(e):
+    return jsonify({"error": "Internal server error.", "results": [], "errors": [str(e)]}), 500
+
+@app.errorhandler(Exception)
+def unhandled_exception(e):
+    import traceback
+    print(traceback.format_exc())
+    return jsonify({"error": str(e), "results": [], "errors": [str(e)]}), 500
 
 
 @app.route("/debug-env")
