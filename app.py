@@ -114,8 +114,19 @@ IMPORTANT EVALUATION RULES:
    - Retail and F&B experience = customer service, cash handling, complaint resolution — transferable to PSA, clinic admin, and front-desk healthcare roles
    - Call centre / BPO experience = high-volume customer interaction, scripted communication, escalation handling — transferable to PSA and patient-facing roles
 
-3. SINGAPORE HEALTHCARE ACRONYMS — Recognise these as strong signals, not unknown text:
+3. SINGAPORE ACRONYMS & ORGANISATIONS — Recognise these as strong signals, not unknown text:
    MOH=Ministry of Health, NHG=National Healthcare Group, SingHealth=Singapore Health Services, NUH=National University Hospital, TTSH=Tan Tock Seng Hospital, SGH=Singapore General Hospital, KTPH=Khoo Teck Puat Hospital, HPB=Health Promotion Board, AIC=Agency for Integrated Care, VITAL=Government HR shared services, NCSS=National Council of Social Service, VWO=Voluntary Welfare Organisation, IHRP=HR professional certification (Singapore), BOI=Board of Inquiry (HR/IR), NGEMR=Electronic Medical Records system, SOC=Specialist Outpatient Clinic, GCP=Good Clinical Practice, IRB=Institutional Review Board, EDC=Electronic Data Capture
+   PA=People's Association (government-linked community organisation — counter service, facility management, event coordination, community ops — directly transferable to PSA and admin roles)
+   SportSG / Sport Singapore=statutory board managing sports facilities and public engagement — customer service, counter operations, facility checks, event support — transferable to PSA and operations roles
+   ActiveSG=Sport Singapore's membership programme — counter service and public-facing operations
+   CC=Community Centre (PA-managed) — public service delivery, counter ops, admin, event management
+
+4. JOB STABILITY — Reward long tenures and promotions:
+   - Candidate promoted within the same organisation = strong performance signal, boost score
+   - 5+ years at a single employer = excellent stability, especially valuable for PSA and admin roles
+   - Multiple promotions across career = high performer pattern
+   - Leaving shift work / rotating shifts for office hours = completely legitimate reason, do NOT treat as a red flag
+   - Leaving due to contract end, restructuring, or seeking career growth = legitimate, do not penalise
 
 4. SCORING: Base score on actual evidence in the CV. Do not penalise for information that is simply not mentioned — absence of evidence is not evidence of absence.
 
