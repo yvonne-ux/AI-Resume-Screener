@@ -35,7 +35,10 @@ def init_db():
     conn.commit()
     conn.close()
 
-init_db()
+try:
+    init_db()
+except Exception as e:
+    print(f"Warning: Could not initialise pipeline database: {e}")
 
 def get_db():
     conn = sqlite3.connect(DATABASE)
@@ -44,23 +47,26 @@ def get_db():
 
 def get_placed_examples(role_title, limit=3):
     """Fetch candidates previously placed in similar roles for few-shot learning."""
-    conn = get_db()
     try:
+        conn = get_db()
         keywords = [kw.strip() for kw in role_title.lower().split() if len(kw) > 2]
         if not keywords:
+            conn.close()
             return []
         conditions = ' OR '.join(['LOWER(role_title) LIKE ?' for _ in keywords])
         params = [f'%{kw}%' for kw in keywords] + [limit]
         rows = conn.execute(
-            f'''SELECT candidate_name, key_skills, strengths, years_experience
+            f'''SELECT candidate_name, key_skills, strengths, years_experience, stage
                 FROM pipeline
                 WHERE stage IN ('offer','interview') AND ({conditions})
                 ORDER BY CASE stage WHEN 'offer' THEN 1 ELSE 2 END, updated_at DESC
                 LIMIT ?''', params
         ).fetchall()
-        return [dict(r) for r in rows]
-    finally:
         conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        print(f"Warning: Could not fetch pipeline examples: {e}")
+        return []
 
 ALLOWED_EXTENSIONS = {"pdf", "doc", "docx"}
 
@@ -500,7 +506,10 @@ def get_pipeline():
 @app.route("/pipeline/save", methods=["POST"])
 def save_pipeline():
     data = request.get_json()
-    conn = get_db()
+    try:
+        conn = get_db()
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
     try:
         now = datetime.utcnow().isoformat()
         existing = conn.execute(
