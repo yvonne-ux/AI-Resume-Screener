@@ -1321,6 +1321,9 @@
         const fillCls = getScoreFillClass(score);
         const skills = (r.key_skills_found || []).map(s => `<span class="skill-tag">${escHtml(s)}</span>`).join('');
 
+        const isPass = verdict.label === 'Pass';
+        const isPassForStage = isPassCandidate(score, r.overqualified);
+
         const tr = document.createElement('tr');
         tr.className = 'main-row';
         tr.innerHTML = `
@@ -1359,8 +1362,6 @@
         const takeaways = (r.email_bullets || r.strengths || []).slice(0, 3);
         const takeawaysHTML = takeaways.map(t => `<li>${escHtml(t)}</li>`).join('');
 
-        const isPass = verdict.label === 'Pass';
-        const isPassForStage = isPassCandidate(score, r.overqualified);
         const emailId = `emailDraft-${i}`;
 
         // Standard interview questions (always shown)
