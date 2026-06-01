@@ -2,6 +2,8 @@ import os
 import io
 import json
 import re
+import sqlite3
+from datetime import datetime
 import anthropic
 import pdfplumber
 import openpyxl
@@ -11,6 +13,54 @@ from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024  # 200 MB to support 20+ resumes
+
+# ── Pipeline database ──
+DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'pipeline.db')
+
+def init_db():
+    conn = sqlite3.connect(DATABASE)
+    conn.execute('''CREATE TABLE IF NOT EXISTS pipeline (
+        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+        candidate_name TEXT NOT NULL,
+        filename       TEXT,
+        role_title     TEXT,
+        score          INTEGER,
+        stage          TEXT DEFAULT 'submitted',
+        key_skills     TEXT DEFAULT '[]',
+        strengths      TEXT DEFAULT '[]',
+        years_experience INTEGER,
+        created_at     TEXT,
+        updated_at     TEXT
+    )''')
+    conn.commit()
+    conn.close()
+
+init_db()
+
+def get_db():
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def get_placed_examples(role_title, limit=3):
+    """Fetch candidates previously placed in similar roles for few-shot learning."""
+    conn = get_db()
+    try:
+        keywords = [kw.strip() for kw in role_title.lower().split() if len(kw) > 2]
+        if not keywords:
+            return []
+        conditions = ' OR '.join(['LOWER(role_title) LIKE ?' for _ in keywords])
+        params = [f'%{kw}%' for kw in keywords] + [limit]
+        rows = conn.execute(
+            f'''SELECT candidate_name, key_skills, strengths, years_experience
+                FROM pipeline
+                WHERE stage IN ('offer','interview') AND ({conditions})
+                ORDER BY CASE stage WHEN 'offer' THEN 1 ELSE 2 END, updated_at DESC
+                LIMIT ?''', params
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
 
 ALLOWED_EXTENSIONS = {"pdf", "doc", "docx"}
 
@@ -80,11 +130,23 @@ Respond with ONLY a valid JSON object (no markdown, no explanation):
     return json.loads(raw)
 
 
-def score_resume_with_claude(cv_text, job_title, job_description):
+def score_resume_with_claude(cv_text, job_title, job_description, examples=None):
     client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
-    prompt = f"""You are a senior healthcare/professional services recruiter with 15 years of experience. Evaluate this CV fairly and accurately against the job requirements below.
+    # Build few-shot examples from past placements
+    examples_section = ""
+    if examples:
+        examples_section = "\n\nDHC PAST PLACEMENTS — Real candidates DHC successfully placed in this type of role. Use as scoring benchmarks:\n"
+        for ex in examples:
+            skills = ex.get('key_skills', '[]')
+            if isinstance(skills, str):
+                try: skills = json.loads(skills)
+                except: skills = []
+            tag = "✅ Placed via Offer" if ex.get('stage') == 'offer' else "📞 Placed via Interview"
+            examples_section += f"- {ex.get('candidate_name','?')} | {tag} | Skills: {', '.join(skills[:5])} | {ex.get('years_experience','?')} yrs exp\n"
 
+    prompt = f"""You are a senior healthcare/professional services recruiter with 15 years of experience. Evaluate this CV fairly and accurately against the job requirements below.
+{examples_section}
 Job Title: {job_title}
 Job Description:
 {job_description}
@@ -324,6 +386,9 @@ def screen():
     results = []
     errors = []
 
+    # Fetch past placed examples for this role to guide scoring
+    examples = get_placed_examples(job_title)
+
     for file in files:
         if file.filename == "":
             continue
@@ -340,7 +405,7 @@ def screen():
                 errors.append(f"{filename}: could not extract text from file.")
                 continue
 
-            result = score_resume_with_claude(cv_text, job_title, job_description)
+            result = score_resume_with_claude(cv_text, job_title, job_description, examples=examples)
             result["filename"] = filename
             results.append(result)
 
@@ -420,6 +485,63 @@ def export():
         as_attachment=True,
         download_name="resume_screening_results.xlsx",
     )
+
+
+@app.route("/pipeline", methods=["GET"])
+def get_pipeline():
+    conn = get_db()
+    try:
+        rows = conn.execute('SELECT * FROM pipeline ORDER BY updated_at DESC').fetchall()
+        return jsonify([dict(r) for r in rows])
+    finally:
+        conn.close()
+
+
+@app.route("/pipeline/save", methods=["POST"])
+def save_pipeline():
+    data = request.get_json()
+    conn = get_db()
+    try:
+        now = datetime.utcnow().isoformat()
+        existing = conn.execute(
+            'SELECT id FROM pipeline WHERE candidate_name=? AND role_title=?',
+            (data.get('candidate_name',''), data.get('role_title',''))
+        ).fetchone()
+        if existing:
+            conn.execute('UPDATE pipeline SET stage=?, updated_at=? WHERE id=?',
+                         (data.get('stage','submitted'), now, existing['id']))
+            pipeline_id = existing['id']
+        else:
+            cur = conn.execute(
+                '''INSERT INTO pipeline
+                   (candidate_name,filename,role_title,score,stage,key_skills,strengths,years_experience,created_at,updated_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)''',
+                (data.get('candidate_name','Unknown'), data.get('filename',''),
+                 data.get('role_title',''), data.get('score',0),
+                 data.get('stage','submitted'),
+                 json.dumps(data.get('key_skills',[])),
+                 json.dumps(data.get('strengths',[])),
+                 data.get('years_experience'), now, now)
+            )
+            pipeline_id = cur.lastrowid
+        conn.commit()
+        return jsonify({'id': pipeline_id, 'status': 'saved'})
+    finally:
+        conn.close()
+
+
+@app.route("/pipeline/update", methods=["POST"])
+def update_pipeline():
+    data = request.get_json()
+    conn = get_db()
+    try:
+        now = datetime.utcnow().isoformat()
+        conn.execute('UPDATE pipeline SET stage=?, updated_at=? WHERE id=?',
+                     (data.get('stage'), now, data.get('id')))
+        conn.commit()
+        return jsonify({'status': 'updated'})
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":

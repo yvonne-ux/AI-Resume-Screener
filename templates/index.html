@@ -572,6 +572,83 @@
       margin-top: 4px; line-height: 1.5;
       font-style: italic;
     }
+
+    /* ── Pipeline ── */
+    .nav-tabs {
+      display: flex; gap: 4px;
+      background: var(--surface2);
+      border-radius: 10px;
+      padding: 4px;
+    }
+    .nav-tab {
+      padding: 6px 16px; border-radius: 7px;
+      font-size: 13px; font-weight: 500;
+      border: none; cursor: pointer;
+      background: transparent; color: var(--text2);
+      transition: all 0.15s;
+    }
+    .nav-tab.active {
+      background: var(--surface);
+      color: var(--accent);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .nav-tab:hover:not(.active) { color: var(--text); }
+
+    .stage-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+    .stage-btn {
+      font-size: 12px; padding: 4px 12px;
+      border-radius: 20px; border: 1.5px solid var(--border);
+      background: var(--surface); color: var(--text2);
+      cursor: pointer; font-weight: 500; transition: all 0.15s;
+    }
+    .stage-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .stage-btn.active-submit { background: #e8f3fb; border-color: #0071ba; color: #0071ba; }
+    .stage-btn.active-interview { background: #fff8e1; border-color: #b45309; color: #b45309; }
+    .stage-btn.active-offer { background: #e1f5ee; border-color: #0f6e56; color: #0f6e56; }
+
+    .pipeline-stats {
+      display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;
+    }
+    .pipeline-stat {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 12px 20px;
+      text-align: center; min-width: 100px;
+    }
+    .pipeline-stat-val { font-size: 22px; font-weight: 700; color: var(--accent); }
+    .pipeline-stat-label { font-size: 12px; color: var(--text3); margin-top: 2px; }
+
+    .pipeline-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .pipeline-table th {
+      text-align: left; padding: 10px 12px;
+      font-size: 11px; font-weight: 600; color: var(--text3);
+      text-transform: uppercase; letter-spacing: 0.05em;
+      border-bottom: 2px solid var(--border);
+    }
+    .pipeline-table td { padding: 12px; border-bottom: 1px solid var(--border); }
+    .pipeline-table tr:last-child td { border-bottom: none; }
+    .pipeline-table tr:hover td { background: var(--surface2); }
+
+    .stage-badge {
+      display: inline-block; padding: 3px 10px;
+      border-radius: 20px; font-size: 12px; font-weight: 600;
+    }
+    .stage-badge.submitted { background: #e8f3fb; color: #0071ba; }
+    .stage-badge.interview { background: #fff8e1; color: #b45309; }
+    .stage-badge.offer     { background: #e1f5ee; color: #0f6e56; }
+
+    .pipeline-filter-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .pipeline-filter {
+      font-size: 12px; padding: 5px 14px;
+      border-radius: 20px; border: 1.5px solid var(--border);
+      background: var(--surface); color: var(--text2);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .pipeline-filter.active { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+    .pipeline-empty {
+      text-align: center; padding: 48px 20px;
+      color: var(--text3); font-size: 14px;
+    }
+    .pipeline-empty .pipeline-empty-icon { font-size: 36px; margin-bottom: 10px; }
   </style>
 </head>
 <body>
@@ -589,6 +666,10 @@
   <div class="topbar">
     <div class="logo">
       <img src="/static/dhc-logo.png" alt="DHC" style="height:36px;object-fit:contain;" />
+    </div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" id="navScreening" onclick="switchView('screening')">🔍 Screening</button>
+      <button class="nav-tab" id="navPipeline" onclick="switchView('pipeline')">📋 Pipeline</button>
     </div>
     <div class="topbar-right">
       <button class="theme-toggle" onclick="newScreening()" title="Start a new screening">
@@ -738,8 +819,195 @@
     </section>
   </div>
 
+  <!-- Pipeline view -->
+  <div id="pipelineView" style="display:none;">
+    <div class="container">
+      <h1 class="page-title">📋 Pipeline</h1>
+      <p class="page-sub">Track candidates from submission to offer. Updates here teach the AI what good looks like.</p>
+
+      <div class="pipeline-stats">
+        <div class="pipeline-stat"><div class="pipeline-stat-val" id="pipeStatSubmitted">0</div><div class="pipeline-stat-label">📤 Submitted</div></div>
+        <div class="pipeline-stat"><div class="pipeline-stat-val" id="pipeStatInterview">0</div><div class="pipeline-stat-label">📞 Interview</div></div>
+        <div class="pipeline-stat"><div class="pipeline-stat-val" id="pipeStatOffer">0</div><div class="pipeline-stat-label">✅ Offer</div></div>
+      </div>
+
+      <div class="pipeline-filter-row">
+        <button class="pipeline-filter active" onclick="filterPipeline('all', this)">All</button>
+        <button class="pipeline-filter" onclick="filterPipeline('submitted', this)">📤 Submitted</button>
+        <button class="pipeline-filter" onclick="filterPipeline('interview', this)">📞 Interview</button>
+        <button class="pipeline-filter" onclick="filterPipeline('offer', this)">✅ Offer</button>
+      </div>
+
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div id="pipelineContent"></div>
+      </div>
+    </div>
+  </div>
+
   <script>
     let screeningResults = [];
+    let pipelineData = [];
+    let pipelineFilter = 'all';
+    let pipelineIdMap = {}; // maps result index → pipeline DB id
+
+    // ── View switcher ──
+    function switchView(view) {
+      const isScreening = view === 'screening';
+      document.querySelector('.container').style.display = isScreening ? '' : 'none';
+      document.getElementById('pipelineView').style.display = isScreening ? 'none' : 'block';
+      document.getElementById('navScreening').classList.toggle('active', isScreening);
+      document.getElementById('navPipeline').classList.toggle('active', !isScreening);
+      if (!isScreening) loadPipeline();
+    }
+
+    function isPassCandidate(score, overqualified) {
+      if (overqualified) return false;
+      return score < 50;
+    }
+
+    // ── Pipeline stage buttons ──
+    async function setPipelineStage(i, stage) {
+      const r = screeningResults[i];
+      if (!r) return;
+      const jobTitle = document.getElementById('job_title').value.trim();
+
+      // Update UI buttons
+      const submitBtn    = document.getElementById(`stage-submit-${i}`);
+      const interviewBtn = document.getElementById(`stage-interview-${i}`);
+      const offerBtn     = document.getElementById(`stage-offer-${i}`);
+
+      // Reset all
+      [submitBtn, interviewBtn, offerBtn].forEach(b => { if(b) { b.classList.remove('active-submit','active-interview','active-offer'); } });
+
+      if (stage === 'submitted') {
+        submitBtn.classList.add('active-submit');
+        submitBtn.textContent = '✓ Submitted';
+        if (interviewBtn) interviewBtn.style.display = '';
+        if (offerBtn) offerBtn.style.display = 'none';
+      } else if (stage === 'interview') {
+        submitBtn.classList.add('active-submit');
+        submitBtn.textContent = '✓ Submitted';
+        interviewBtn.classList.add('active-interview');
+        interviewBtn.textContent = '✓ Interview';
+        if (offerBtn) offerBtn.style.display = '';
+      } else if (stage === 'offer') {
+        submitBtn.classList.add('active-submit');
+        submitBtn.textContent = '✓ Submitted';
+        interviewBtn.classList.add('active-interview');
+        interviewBtn.textContent = '✓ Interview';
+        offerBtn.classList.add('active-offer');
+        offerBtn.textContent = '✓ Offer Made';
+      }
+
+      // Save / update in backend
+      const existingId = pipelineIdMap[i];
+      if (existingId) {
+        await fetch('/pipeline/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: existingId, stage })
+        });
+      } else {
+        const res = await fetch('/pipeline/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            candidate_name: r.candidate_name || 'Unknown',
+            filename: r.filename || '',
+            role_title: jobTitle,
+            score: r.score || 0,
+            stage,
+            key_skills: r.key_skills_found || [],
+            strengths: r.strengths || [],
+            years_experience: r.years_experience || null
+          })
+        });
+        const data = await res.json();
+        if (data.id) pipelineIdMap[i] = data.id;
+      }
+    }
+
+    // ── Pipeline view ──
+    async function loadPipeline() {
+      try {
+        const res = await fetch('/pipeline');
+        pipelineData = await res.json();
+        renderPipeline();
+      } catch(e) {
+        document.getElementById('pipelineContent').innerHTML = '<div class="pipeline-empty"><div class="pipeline-empty-icon">⚠️</div><p>Could not load pipeline.</p></div>';
+      }
+    }
+
+    function filterPipeline(stage, btn) {
+      pipelineFilter = stage;
+      document.querySelectorAll('.pipeline-filter').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderPipeline();
+    }
+
+    function renderPipeline() {
+      const filtered = pipelineFilter === 'all' ? pipelineData : pipelineData.filter(r => r.stage === pipelineFilter);
+
+      // Stats
+      document.getElementById('pipeStatSubmitted').textContent = pipelineData.filter(r => r.stage === 'submitted').length;
+      document.getElementById('pipeStatInterview').textContent = pipelineData.filter(r => r.stage === 'interview').length;
+      document.getElementById('pipeStatOffer').textContent     = pipelineData.filter(r => r.stage === 'offer').length;
+
+      const content = document.getElementById('pipelineContent');
+
+      if (!filtered.length) {
+        content.innerHTML = `<div class="pipeline-empty">
+          <div class="pipeline-empty-icon">📭</div>
+          <p><strong>No candidates here yet.</strong></p>
+          <p style="margin-top:6px;">Screen CVs and click <strong>"Submit to Client"</strong> to start building your pipeline.</p>
+        </div>`;
+        return;
+      }
+
+      const stageBadge = s => {
+        const map = { submitted: '📤 Submitted', interview: '📞 Interview', offer: '✅ Offer' };
+        return `<span class="stage-badge ${s}">${map[s] || s}</span>`;
+      };
+
+      const rows = filtered.map(r => {
+        const skills = (() => { try { return JSON.parse(r.key_skills || '[]'); } catch { return []; } })();
+        const date = r.updated_at ? r.updated_at.split('T')[0] : '—';
+        return `<tr>
+          <td><strong>${escHtml(r.candidate_name)}</strong></td>
+          <td style="color:var(--text2)">${escHtml(r.role_title || '—')}</td>
+          <td><span style="font-weight:600;color:var(--accent)">${r.score || 0}%</span></td>
+          <td>${stageBadge(r.stage)}</td>
+          <td style="color:var(--text3);font-size:12px;">${skills.slice(0,3).map(s => escHtml(s)).join(', ')}</td>
+          <td style="color:var(--text3);font-size:12px;">${date}</td>
+          <td>
+            <select onchange="updatePipelineStage(${r.id}, this.value)" style="font-size:12px;padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);">
+              <option value="submitted" ${r.stage==='submitted'?'selected':''}>📤 Submitted</option>
+              <option value="interview" ${r.stage==='interview'?'selected':''}>📞 Interview</option>
+              <option value="offer"     ${r.stage==='offer'?'selected':''}>✅ Offer</option>
+            </select>
+          </td>
+        </tr>`;
+      }).join('');
+
+      content.innerHTML = `<table class="pipeline-table">
+        <thead><tr>
+          <th>Candidate</th><th>Role</th><th>Score</th><th>Stage</th><th>Skills</th><th>Updated</th><th>Update Stage</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    }
+
+    async function updatePipelineStage(id, stage) {
+      await fetch('/pipeline/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, stage })
+      });
+      // Refresh stats
+      const idx = pipelineData.findIndex(r => r.id === id);
+      if (idx !== -1) pipelineData[idx].stage = stage;
+      renderPipeline();
+    }
 
     // ── Theme ──
     function toggleTheme() {
@@ -1070,6 +1338,11 @@
               <button class="shortlist-btn" id="sl-${i}" onclick="toggleShortlist(${i}, this)">☆ Shortlist</button>
               <button class="expand-btn" id="expandBtn-${i}" onclick="toggleDetail(${i}, this)">Details ▾</button>
             </div>
+            ${!isPassForStage ? `<div class="stage-btns" id="stage-btns-${i}">
+              <button class="stage-btn" id="stage-submit-${i}" onclick="setPipelineStage(${i}, 'submitted')">📤 Submit to Client</button>
+              <button class="stage-btn" id="stage-interview-${i}" onclick="setPipelineStage(${i}, 'interview')" style="display:none">📞 Interview</button>
+              <button class="stage-btn" id="stage-offer-${i}" onclick="setPipelineStage(${i}, 'offer')" style="display:none">✅ Offer</button>
+            </div>` : ''}
           </td>`;
         body.appendChild(tr);
 
@@ -1087,6 +1360,7 @@
         const takeawaysHTML = takeaways.map(t => `<li>${escHtml(t)}</li>`).join('');
 
         const isPass = verdict.label === 'Pass';
+        const isPassForStage = isPassCandidate(score, r.overqualified);
         const emailId = `emailDraft-${i}`;
 
         // Standard interview questions (always shown)
