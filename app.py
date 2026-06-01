@@ -132,8 +132,22 @@ IMPORTANT EVALUATION RULES:
 
 5. SUITABILITY: Set suitable=true if the candidate has the core competencies required, even if some nice-to-haves are missing.
 
-6. RED FLAGS to note (but not automatically fail):
-   - Job hopping: fewer than 12 months per role repeatedly (note but do not auto-reject)
+6. JOB HISTORY IS A UNIVERSAL SIGNAL — applies to ALL roles, ALL industries:
+   POSITIVE signals (boost score):
+   - Long tenures (3+ years per employer) = loyalty, reliability, depth of experience
+   - Promoted within the same organisation = strong performer, recognised by employer
+   - Progressive career growth (e.g. Executive → Senior Executive → Manager) = ambition and capability
+   - Consistent focus in relevant skillsets over many years = deep expertise
+   NEGATIVE signals (note but do not auto-fail):
+   - Job hopping: multiple roles under 12 months = flag as concern, but investigate reason first
+   - Frequent unrelated industry jumps without clear progression = flag
+   - Large unexplained gaps (6+ months post-2022) = worth probing, not automatic rejection
+   NEUTRAL — do NOT penalise:
+   - Leaving shift/rotating work for office hours = legitimate lifestyle reason
+   - Contract roles ending naturally = not the candidate's choice
+   - Career breaks for caregiving, health, or study = legitimate
+
+7. RED FLAGS to note (but not automatically fail):
    - Pure support/AMS-only IT backgrounds with zero implementation experience
    - Pure bench-lab scientists applying for clinical research coordinator roles (need coordination experience)
    - Overqualified: ONLY when scope AND title are both clearly above role requirements
