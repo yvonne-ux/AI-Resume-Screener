@@ -102,8 +102,8 @@ def extract_text_from_docx(file_bytes):
         if para.text.strip():
             parts.append(para.text.strip())
 
-    # Tables — many Singapore resume templates use tables for layout
-    for table in doc.tables:
+    # Tables — many Singapore resume templates use tables for layout (cap at 50)
+    for table in doc.tables[:50]:
         for row in table.rows:
             seen_cells = []
             for cell in row.cells:
@@ -126,7 +126,10 @@ def extract_text(file_bytes, filename):
 
 
 def analyze_jd_with_claude(job_title, job_description):
-    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+    client = anthropic.Anthropic(
+        api_key=os.environ.get("ANTHROPIC_API_KEY"),
+        timeout=50.0,
+    )
 
     prompt = f"""You are an expert recruiter. Analyze this job description and extract what a junior recruiter needs to know to screen candidates effectively.
 
@@ -155,7 +158,10 @@ Respond with ONLY a valid JSON object (no markdown, no explanation):
 
 
 def score_resume_with_claude(cv_text, job_title, job_description, examples=None):
-    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+    client = anthropic.Anthropic(
+        api_key=os.environ.get("ANTHROPIC_API_KEY"),
+        timeout=50.0,   # fail fast — Railway proxy cuts at 60s
+    )
 
     # Build few-shot examples from past placements
     examples_section = ""
