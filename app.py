@@ -344,19 +344,6 @@ def index():
     return render_template("index.html")
 
 
-# ── Global error handlers — always return JSON so the browser never sees HTML ──
-@app.errorhandler(400)
-def bad_request(e):
-    return jsonify({"error": str(e), "results": [], "errors": [str(e)]}), 400
-
-@app.errorhandler(413)
-def too_large(e):
-    return jsonify({"error": "File too large.", "results": [], "errors": ["File too large."]}), 413
-
-@app.errorhandler(500)
-def server_error(e):
-    return jsonify({"error": "Internal server error.", "results": [], "errors": [str(e)]}), 500
-
 
 @app.route("/debug-env")
 def debug_env():

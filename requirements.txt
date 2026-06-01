@@ -5,4 +5,4 @@ python-docx>=1.1.0
 openpyxl>=3.1.2
 werkzeug>=3.0.0
 gunicorn>=21.2.0
-gevent>=24.2.1
+gevent>=24.11.1
