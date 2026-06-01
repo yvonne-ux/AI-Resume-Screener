@@ -95,10 +95,34 @@ CV:
 ---
 
 IMPORTANT EVALUATION RULES:
-1. TRANSFERABLE EXPERIENCE: Give full credit for transferable skills. A candidate with project management in a related government or healthcare-adjacent body (e.g. HPB, MOH, restructured hospitals) DOES have relevant healthcare operations experience. Do not penalise for sector variation if the core skills match.
-2. OVERQUALIFIED: If the candidate's current title, seniority, or salary range appears significantly above the role being hired (e.g. Director applying for Executive role), set "overqualified" to true. This is a risk flag, not automatic rejection.
-3. SCORING: Base score on actual evidence in the CV. Do not penalise for information that is simply not mentioned — absence of evidence is not evidence of absence.
-4. SUITABILITY: Set suitable=true if the candidate has the core competencies required, even if some nice-to-haves are missing.
+
+1. SENIORITY TITLE INFLATION — NEVER penalise for title mismatch alone. Job titles mean different things across industries and companies. Always evaluate based on actual scope of work, responsibilities, and team size — NOT the job title. Examples of common title inflation to be aware of:
+   - Banking/Finance: "Vice President (VP)" is often equivalent to a Manager or Senior Executive in other sectors
+   - MNCs: "Director" can mean an individual contributor with no direct reports
+   - Startups: "Head of" or "Lead" may mean a team of 1-2 people
+   - Government/Statutory Boards: grades like "MX13" or "Band 3" indicate seniority, not the title
+   - When a candidate's title appears senior but their scope, team size, and responsibilities match the role, do NOT flag as overqualified
+   - Only flag overqualified=true if both the title AND the described scope/responsibilities are clearly above the role requirements
+
+2. TRANSFERABLE EXPERIENCE: Give full credit for transferable skills across sectors. Examples:
+   - Government/Statutory Board experience (HPB, MOH, CPF, HDB, MOE, VITAL) = strong operations, policy, and governance skills
+   - Military (SAF/SPF/SCDF) backgrounds = strong operations management, project delivery, discipline
+   - Big 4 consulting (Deloitte, KPMG, PwC, EY, Accenture) = structured methodology and stakeholder management
+   - Healthcare-adjacent bodies (HPB, AIC, NCSS, VWOs) count as healthcare experience
+   - Banking/finance ops experience transfers well to healthcare admin and HR shared services roles
+
+3. SINGAPORE HEALTHCARE ACRONYMS — Recognise these as strong signals, not unknown text:
+   MOH=Ministry of Health, NHG=National Healthcare Group, SingHealth=Singapore Health Services, NUH=National University Hospital, TTSH=Tan Tock Seng Hospital, SGH=Singapore General Hospital, KTPH=Khoo Teck Puat Hospital, HPB=Health Promotion Board, AIC=Agency for Integrated Care, VITAL=Government HR shared services, NCSS=National Council of Social Service, VWO=Voluntary Welfare Organisation, IHRP=HR professional certification (Singapore), BOI=Board of Inquiry (HR/IR), NGEMR=Electronic Medical Records system, SOC=Specialist Outpatient Clinic, GCP=Good Clinical Practice, IRB=Institutional Review Board, EDC=Electronic Data Capture
+
+4. SCORING: Base score on actual evidence in the CV. Do not penalise for information that is simply not mentioned — absence of evidence is not evidence of absence.
+
+5. SUITABILITY: Set suitable=true if the candidate has the core competencies required, even if some nice-to-haves are missing.
+
+6. RED FLAGS to note (but not automatically fail):
+   - Job hopping: fewer than 12 months per role repeatedly (note but do not auto-reject)
+   - Pure support/AMS-only IT backgrounds with zero implementation experience
+   - Pure bench-lab scientists applying for clinical research coordinator roles (need coordination experience)
+   - Overqualified: ONLY when scope AND title are both clearly above role requirements
 
 Respond with ONLY a valid JSON object (no markdown, no code fences, no explanation):
 {{
