@@ -93,27 +93,10 @@ def extract_text_from_pdf(file_bytes):
 
 
 def extract_text_from_docx(file_bytes):
-    """Extract text from DOCX including paragraphs and tables."""
+    """Extract text from DOCX paragraphs (fast, safe for all file sizes)."""
     doc = Document(io.BytesIO(file_bytes))
-    parts = []
-
-    # Paragraphs (header, body, footer runs)
-    for para in doc.paragraphs:
-        if para.text.strip():
-            parts.append(para.text.strip())
-
-    # Tables — many Singapore resume templates use tables for layout (cap at 50)
-    for table in doc.tables[:50]:
-        for row in table.rows:
-            seen_cells = []
-            for cell in row.cells:
-                txt = cell.text.strip()
-                if txt and txt not in seen_cells:   # merged cells repeat text
-                    seen_cells.append(txt)
-            if seen_cells:
-                parts.append(' | '.join(seen_cells))
-
-    return clean_text('\n'.join(parts))
+    paragraphs = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+    return clean_text('\n'.join(paragraphs))
 
 
 def extract_text(file_bytes, filename):
