@@ -162,11 +162,11 @@ def score_resume_with_claude(cv_text, job_title, job_description, examples=None)
 {examples_section}
 Job Title: {job_title}
 Job Description:
-{job_description}
+{job_description[:4000]}
 
 CV:
 ---
-{cv_text[:8000]}
+{cv_text[:6000]}
 ---
 
 IMPORTANT EVALUATION RULES:
@@ -257,7 +257,7 @@ Scoring guide: 90-100 exceptional, 70-89 strong, 50-69 partial match (still wort
 
     message = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=1800,
+        max_tokens=1400,
         messages=[{"role": "user", "content": prompt}],
     )
 
