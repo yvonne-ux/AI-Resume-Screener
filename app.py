@@ -3,7 +3,6 @@ import io
 import json
 import re
 import sqlite3
-import threading
 import time
 from datetime import datetime
 import anthropic
@@ -94,33 +93,13 @@ def extract_text_from_pdf(file_bytes):
     return "\n".join(pages)
 
 
-def _docx_worker(file_bytes, result_box):
-    """Run inside a thread so we can apply a hard timeout."""
-    try:
-        t0 = time.time()
-        doc = Document(io.BytesIO(file_bytes))
-        t1 = time.time()
-        paragraphs = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
-        t2 = time.time()
-        print(f"[DOCX] open={t1-t0:.2f}s  paragraphs={t2-t1:.2f}s  count={len(paragraphs)}")
-        result_box[0] = clean_text('\n'.join(paragraphs))
-    except Exception as e:
-        result_box[1] = e
-
-
 def extract_text_from_docx(file_bytes):
-    """Extract text from DOCX with a 15-second hard timeout (some files with
-    large embedded images or complex XML can hang indefinitely)."""
-    result_box = [None, None]   # [text, exception]
-    t = threading.Thread(target=_docx_worker, args=(file_bytes, result_box), daemon=True)
-    t.start()
-    t.join(timeout=15)
-    if t.is_alive():
-        print(f"[DOCX] timed out after 15s — file size {len(file_bytes)//1024}KB")
-        return ""          # treated as "could not extract text"
-    if result_box[1]:
-        raise result_box[1]
-    return result_box[0] or ""
+    """Extract text from DOCX paragraphs."""
+    t0 = time.time()
+    doc = Document(io.BytesIO(file_bytes))
+    paragraphs = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+    print(f"[DOCX] parsed {len(file_bytes)//1024}KB in {time.time()-t0:.2f}s → {len(paragraphs)} paragraphs")
+    return clean_text('\n'.join(paragraphs))
 
 
 def extract_text(file_bytes, filename):
