@@ -282,7 +282,7 @@ Scoring guide: 90-100 exceptional, 70-89 strong, 50-69 partial match (still wort
     t_api = time.time()
     message = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=1400,
+        max_tokens=1800,
         messages=[{"role": "user", "content": prompt}],
     )
     print(f"[Claude] score_resume API took {time.time()-t_api:.2f}s")
