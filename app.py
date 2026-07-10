@@ -2,6 +2,7 @@ import os
 import io
 import json
 import re
+import signal
 import sqlite3
 import time
 from datetime import datetime
@@ -11,6 +12,14 @@ import openpyxl
 from docx import Document
 from flask import Flask, request, jsonify, render_template, send_file
 from werkzeug.utils import secure_filename
+
+
+class _ClaudeTimeout(Exception):
+    pass
+
+def _alarm_handler(signum, frame):
+    raise _ClaudeTimeout()
+
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024  # 200 MB to support 20+ resumes
@@ -258,13 +267,19 @@ Instructions:
 
 Scoring guide: 90-100 exceptional, 70-89 strong, 50-69 partial match (still worth considering), 30-49 weak, 0-29 poor."""
 
-    t_api = time.time()
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=1800,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    print(f"[Claude] score_resume API took {time.time()-t_api:.2f}s")
+    old_handler = signal.signal(signal.SIGALRM, _alarm_handler)
+    signal.alarm(25)  # hard OS interrupt — fires before Railway's 30s worker timeout
+    try:
+        t_api = time.time()
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1800,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        print(f"[Claude] score_resume API took {time.time()-t_api:.2f}s")
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old_handler)
 
     raw = message.content[0].text.strip()
     raw = re.sub(r"^```(?:json)?\s*", "", raw)
@@ -428,6 +443,9 @@ def screen():
             result["filename"] = filename
             results.append(result)
 
+        except _ClaudeTimeout:
+            print(f"[Claude] score_resume TIMED OUT for {filename}")
+            errors.append(f"{filename}: screening timed out — upload this file on its own and try again.")
         except json.JSONDecodeError:
             errors.append(f"{filename}: Claude returned an unexpected response format.")
         except anthropic.APIError as e:
